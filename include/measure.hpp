@@ -70,6 +70,10 @@ using is_measure = std::bool_constant<is_detected_v<accept_measures_only_kind, T
 template<class T>
 constexpr bool is_measure_v = is_measure<T>::value;
 
+// check if T is a compound measure
+template<class T>
+constexpr bool is_compound_measure_v = T::type == MeasureType::Compound;
+
 // check if two measures share the same type
 template<class A, class B>
 using is_same_type = std::bool_constant<A::type == B::type>;
@@ -122,6 +126,31 @@ struct add_exp<T, me::X<>>
 template<class T, class E>
 using add_exp_t = typename add_exp<T, E>::type;
 
+// universify compound measures
+template<class T>
+struct uncompoundify_helper
+{ using type = T; /*ugly*/ };
+
+template<typename... T>
+struct uncompoundify_helper<X<T...>>
+{
+  using hd = head<X<T...>>;
+
+  using e = std::conditional_t<is_compound_measure_v<hd>,
+                               typename uncompoundify_helper<typename hd::kind>::type,
+                               X<hd>>;
+  using type = conc<e, typename uncompoundify_helper<tail<X<T...>>>::type>;
+};
+
+template<>
+struct uncompoundify_helper<X<>>
+{
+  using type = X<>;
+};
+
+template<class T>
+using uncompoundify = typename uncompoundify_helper<universify<T>>::type;
+
 // simplify list of unit-kinds
 template<class L>
 struct simplify;
@@ -132,11 +161,24 @@ struct simplify<me::X<Args...>>
   using hd = me::head<me::X<Args...>>;
   using tl = me::tail<me::X<Args...>>;
 
-  using added = add_exp_t<hd, me::X<Args...>>;
-
   template<class B>
   using my_same_kind = is_same_kind<hd, B>;
-  using type = me::cons<added, typename simplify<me::filter_t<my_same_kind, tl>>::type>;
+
+  template<MeasureType t, class m, class l>
+  struct intermediate_simplify
+  {
+    using added = add_exp_t<hd, me::X<Args...>>;
+    using type = me::cons<added, typename simplify<me::filter_t<my_same_kind, tl>>::type>;
+  };
+
+  template<class m, class l>
+  struct intermediate_simplify<MeasureType::Compound, m, l>
+  {
+    using new_list = me::conc<l, uncompoundify<X<m>>>;
+    using type = typename simplify<new_list>::type;
+  };
+
+  using type = typename intermediate_simplify<hd::type, hd, tl>::type;
 };
 
 template<>

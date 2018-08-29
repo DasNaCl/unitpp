@@ -29,6 +29,10 @@ struct unit
   using Default = T;
 
   static_assert(me::is_list_v<L>, "L should be a list of type me::X.");
+
+  constexpr unit() = default;
+  constexpr unit(T v) : val(v)
+  {  }
 private:
   T val;
 };

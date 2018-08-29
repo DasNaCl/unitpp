@@ -283,13 +283,14 @@ inline constexpr bool same_elements_v = same_elements<A, B>::value;
 /// Takes a list possibly containing lists and makes a single list out of them
 template<class T>
 struct universify_helper
-{ using type = void; /*ugly*/ };
+{ using type = T; };//void; /*ugly*/ };
 
 template<typename... T>
 struct universify_helper<X<T...>>
 {
-  using e = std::conditional_t<is_list<head<X<T...>>>::value,
-                               typename universify_helper<head<X<T...>>>::type, X<head<X<T...>>>>;
+  using hd = head<X<T...>>;
+  using e = std::conditional_t<is_list<hd>::value,
+                               typename universify_helper<hd>::type, X<hd>>;
 
   using type = conc<e, typename universify_helper<tail<X<T...>>>::type>;
 };
