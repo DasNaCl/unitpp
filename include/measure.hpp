@@ -88,6 +88,26 @@ using is_same_kind = std::bool_constant<std::is_same_v<typename A::kind, typenam
 template<class A, class B>
 inline constexpr bool is_same_kind_v = std::is_same_v<typename A::kind, typename B::kind>;
 
+// function to find compound measures
+namespace detail
+{
+  template<class... Kind>
+  auto exists_compound_func(X<Kind...>&&) -> void;
+}
+template<class... Kind>
+struct exists_compound
+{
+  using type = decltype(detail::exists_compound_func(std::declval<X<Kind...>>()));
+  
+  static constexpr bool value = !std::is_same_v<type, void>;
+};
+
+template<class... Kind>
+constexpr bool exists_compound_v = exists_compound<Kind...>::value;
+
+template<class... Kind>
+using exists_compound_t = typename exists_compound<Kind...>::type;
+
 // adds exponents
 template<class T, class L>
 struct add_exp;
