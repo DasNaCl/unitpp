@@ -94,6 +94,20 @@ struct tail_helper<X<H, Tail...>>
 template<class H>
 using tail = typename tail_helper<H>::type;
 
+// finds the size of a list
+template<class T>
+struct length
+{
+  static constexpr std::size_t value = 1 + length<tail<T>>::value;
+};
+template<>
+struct length<X<>>
+{
+  static constexpr std::size_t value = 0;
+};
+template<typename T>
+constexpr std::size_t length_v = length<T>::value;
+
 // yields true if list is empty
 template<typename T>
 using is_list_empty = std::is_same<T, X<>>;
