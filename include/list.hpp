@@ -108,6 +108,44 @@ struct length<X<>>
 template<typename T>
 constexpr std::size_t length_v = length<T>::value;
 
+// erases the nth element
+template<std::size_t n, class T>
+struct erase;
+template<std::size_t n, class... T>
+struct erase<n, X<T...>>
+{
+  static_assert(n < length_v<X<T...>>, "n should be smaller than the length of the list");
+
+  using type = cons<head<X<T...>>, typename erase<n - 1, tail<X<T...>>>::type>;
+};
+template<class... T>
+struct erase<0, X<T...>>
+{
+  using type = tail<X<T...>>;
+};
+
+template<int n, typename T>
+using erase_t = typename erase<n, T>::type;
+
+// yields the nth element
+template<std::size_t n, class T>
+struct nth;
+template<std::size_t n, class... T>
+struct nth<n, X<T...>>
+{
+  static_assert(n < length_v<X<T...>>, "n should be smaller than the length of the list");
+
+  using type = typename nth<n - 1, tail<X<T...>>>::type;
+};
+template<class... T>
+struct nth<0, X<T...>>
+{
+  using type = head<X<T...>>;
+};
+
+template<int n, typename T>
+using nth_t = typename nth<n, T>::type;
+
 // yields true if list is empty
 template<typename T>
 using is_list_empty = std::is_same<T, X<>>;

@@ -263,43 +263,137 @@ namespace detail
 {
   template<class A, class B>
   using kind_cmp = std::bool_constant<(A::id < B::id)>;
+
+  template<class L>
+  using compoundify_op = explode_t<sort_t<kind_cmp, L>>;
+
+  // do the compoundify check if some compound for a given thing exists
+  template<class T>
+  struct check
+  {
+    using sorted = typename simplify<false, T>::type;
+    using new_list = me::sort_t<detail::kind_cmp, sorted>;
+
+    // either this is shortened or the same as before
+    using intermediate = exists_compound_t<new_list>;
+
+    constexpr static bool value = exists_compound_v<new_list>;
+    using type = compoundify_op<std::conditional_t<value, intermediate, new_list>>;
+  };
+
+  template<class List, int chunk>
+  struct single_rm_A;
+  template<class List, int chunk, int rm, bool condition>
+  struct single_rm_B;
+
+  template<class List, int chunk, int rm, bool condition>
+  struct single_rm_C
+  {
+    // core
+    //
+    // remove an element
+    using smaller_list = me::erase_t<rm, List>;
+
+    // check OR recurse
+    template<class Junk, int ch>
+    struct inter // recurse
+    { using bail_out = single_rm_A<smaller_list, ch - 1>; };
+
+    template<class Junk>
+    struct inter<Junk, 0>
+    { using bail_out = check<smaller_list>; };
+
+    using bail_out = typename inter<void, chunk>::bail_out;
+    using new_list = me::cons<me::nth_t<rm, List>, typename bail_out::type>;
+    using sorted = compoundify_op<new_list>;
+
+    // return
+    template<class Junk, bool cond>
+    struct ret_rectifier
+    {
+      struct res
+      {
+        using type = sorted;
+        constexpr static bool value = bail_out::value;
+      };
+      using type = res;
+    };
+    template<class Junk>
+    struct ret_rectifier<Junk, false>
+    {
+      using type = single_rm_B<List, chunk, rm + 1, (rm + 1 < me::length_v<sorted>)>;
+    };
+    using ret = typename ret_rectifier<void, bail_out::value>::type;
+
+    using type = typename ret::type;
+    constexpr static bool value = ret::value;
+  };
+  template<class List, int chunk, int rm>
+  struct single_rm_C<List, chunk, rm, false>
+  {
+    using tmp = single_rm_B<List, chunk, rm + 1, (rm + 1 < me::length_v<List>)>;
+
+    using type = typename tmp::type;
+    constexpr static bool value = tmp::value;
+  };
+
+
+  template<class List, int chunk, int rm, bool condition>
+  struct single_rm_B
+  {
+    using tmp = single_rm_C<List, chunk, rm, (me::length_v<List> > 1)>;
+
+    using type = typename tmp::type;
+    constexpr static bool value = false;
+  };
+  template<class List, int chunk, int rm>
+  struct single_rm_B<List, chunk, rm, false>
+  {
+    using type = List;
+    constexpr static bool value = false;
+  };
+
+  template<class List, int chunk>
+  struct single_rm_A // recurse
+  {
+    using tmp = single_rm_B<List, chunk, 0, (0 < me::length_v<List>)>;
+
+    using type = typename tmp::type;
+    constexpr static bool value = tmp::value;
+  };
+  template<class List>
+  struct single_rm_A<List, -1> // recursion stop
+  {
+    using tmp = check<List>;
+
+    using type = typename tmp::type;
+    constexpr static bool value = tmp::value;
+  };
 }
 
 template<typename... T>
 struct compoundify<X<T...>>
 {
-  template<std::size_t, std::size_t, class>
-  struct helper;
-  template<std::size_t pos, std::size_t part_len, typename... D>
-  struct helper<pos, part_len, X<D...>>
+  template<int chunk, bool loop_cond, class List>
+  struct helper
   {
-    template<int n = part_len>
-    constexpr static auto f() -> std::enable_if_t<(n <= length_v<X<D...>>), int>;  // <- ok
-    template<int n = part_len>
-    constexpr static auto f() -> std::enable_if_t<(n  > length_v<X<D...>>), char>; // <- fail
-  
-    template<typename Fail, class Garbage>
-    struct keep_going
-    {
-      using type = X<>;
-    };
-    template<class Garbage>
-    struct keep_going<int, Garbage>
-    {
-      // magic should happen here!
-      using tmp_list = typename simplify<false, X<D...>>::type; // <- unfortunately, we have to add up exponents *here* again
+    using new_t = detail::single_rm_A<List, chunk>;
 
-      using new_list = me::sort_t<detail::kind_cmp, tmp_list>;
-      using intermediate = exists_compound_t<new_list>; // <- either this is shortened or the same as before
+    constexpr static bool bail_out = new_t::value;
+    constexpr static int next_chunk = (bail_out ? -1 : (chunk + 1));
 
-      // now use intermediate and somehow retry again by taking stuff out
-      using type = intermediate;
-    };
-
-    using type = typename keep_going<decltype(f()), void>::type;
+    using new_list = typename new_t::type;
+    using type = typename helper<next_chunk,
+                                 (next_chunk < me::length_v<new_list>),
+                                 new_list>::type;
+  };
+  template<int chunk, class List>
+  struct helper<chunk, false, List>
+  {
+    using type = me::sort_t<detail::kind_cmp, List>;
   };
 
-  using type = typename helper<0, 1, X<T...>>::type;
+  using type = typename helper<-1, true, X<T...>>::type;
 };
 
 template<>
@@ -309,7 +403,7 @@ struct compoundify<X<>>
 };
 
 template<typename L>
-using compoundify_t = typename compoundify<explode_t<L>>::type;
+using compoundify_t = typename compoundify<detail::compoundify_op<L>>::type;
 
 // simplify list of unit-kinds
 
