@@ -289,41 +289,38 @@ namespace detail
   template<class List, int chunk, int rm, bool condition>
   struct single_rm_C
   {
-    // core
-    //
     // remove an element
-    using smaller_list = me::erase_t<rm, List>;
+    using smaller_list = me::erase_t<rm, compoundify_op<List>>;
 
     // check OR recurse
-    template<class Junk, int ch>
-    struct inter // recurse
-    { using bail_out = single_rm_A<smaller_list, ch - 1>; };
-
-    template<class Junk>
-    struct inter<Junk, 0>
-    { using bail_out = check<smaller_list>; };
-
-    using bail_out = typename inter<void, chunk>::bail_out;
-    using new_list = me::cons<me::nth_t<rm, List>, typename bail_out::type>;
+    template<class integral>
+    constexpr static auto inter()
+      -> std::enable_if_t<integral::value != 0, single_rm_A<smaller_list, integral::value - 1>>;
+    
+    template<class integral>
+    constexpr static auto inter()
+      -> std::enable_if_t<integral::value == 0, check<smaller_list>>;
+    
+    using bail_out = decltype(inter<std::integral_constant<int, chunk>>());
+    using w = typename bail_out::type;
+    using new_list = me::cons<me::nth_t<rm, compoundify_op<List>>, w>;
     using sorted = compoundify_op<new_list>;
 
     // return
-    template<class Junk, bool cond>
-    struct ret_rectifier
+    struct potential_res
     {
-      struct res
-      {
-        using type = sorted;
-        constexpr static bool value = bail_out::value;
-      };
-      using type = res;
+      using type = sorted;
+      constexpr static bool value = true;
     };
-    template<class Junk>
-    struct ret_rectifier<Junk, false>
-    {
-      using type = single_rm_B<List, chunk, rm + 1, (rm + 1 < me::length_v<sorted>)>;
-    };
-    using ret = typename ret_rectifier<void, bail_out::value>::type;
+
+    template<class W>
+    constexpr static auto ret_getter()
+      -> std::enable_if_t<W::value, potential_res>;
+    template<class W>
+    constexpr static auto ret_getter()
+      -> std::enable_if_t<!W::value, single_rm_B<compoundify_op<List>, chunk, rm + 1, (rm + 1 < me::length_v<compoundify_op<List>>)>>;
+
+    using ret = decltype(ret_getter<bail_out>());
 
     using type = typename ret::type;
     constexpr static bool value = ret::value;
@@ -331,7 +328,7 @@ namespace detail
   template<class List, int chunk, int rm>
   struct single_rm_C<List, chunk, rm, false>
   {
-    using tmp = single_rm_B<List, chunk, rm + 1, (rm + 1 < me::length_v<List>)>;
+    using tmp = single_rm_B<compoundify_op<List>, chunk, rm + 1, (rm + 1 < me::length_v<compoundify_op<List>>)>;
 
     using type = typename tmp::type;
     constexpr static bool value = tmp::value;
@@ -366,8 +363,23 @@ namespace detail
   {
     using tmp = check<List>;
 
-    using type = typename tmp::type;
-    constexpr static bool value = tmp::value;
+    struct res
+    {
+      constexpr static bool value = true;
+      using type = typename tmp::type;
+    };
+    template<class H>
+    constexpr static auto f()
+      -> std::enable_if_t<H::value, res>;
+
+    template<class H>
+    constexpr static auto f()
+      -> std::enable_if_t<!H::value, single_rm_A<List, 0>>;
+
+    using res_t = decltype(f<tmp>());
+    
+    using type = typename res_t::type;
+    constexpr static bool value = res_t::value;
   };
 }
 
@@ -377,7 +389,7 @@ struct compoundify<X<T...>>
   template<int chunk, bool loop_cond, class List>
   struct helper
   {
-    using new_t = detail::single_rm_A<List, chunk>;
+    using new_t = detail::single_rm_A<detail::compoundify_op<List>, chunk>;
 
     constexpr static bool bail_out = new_t::value;
     constexpr static int next_chunk = (bail_out ? -1 : (chunk + 1));
@@ -385,7 +397,7 @@ struct compoundify<X<T...>>
     using new_list = typename new_t::type;
     using type = typename helper<next_chunk,
                                  (next_chunk < me::length_v<new_list>),
-                                 new_list>::type;
+                                 detail::compoundify_op<new_list>>::type;
   };
   template<int chunk, class List>
   struct helper<chunk, false, List>
