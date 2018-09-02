@@ -108,6 +108,24 @@ constexpr bool is_measure_v = is_measure<T>::value;
 template<class T>
 constexpr bool is_compound_measure_v = T::type == MeasureType::Compound;
 
+// inverses the exponents of given measures
+template<class L>
+struct inverse_measures;
+template<class... Args>
+struct inverse_measures<me::X<Args...>>
+{
+  using m = me::head<me::X<Args...>>;
+  using type = me::cons<measure<m::type, typename m::kind, -1 * m::exponent>, me::tail<me::X<Args...>>>;
+};
+template<>
+struct inverse_measures<me::X<>>
+{
+  using type = me::X<>;
+};
+
+template<class L>
+using inverse_measures_t = typename inverse_measures<L>::type;
+
 // check if two measures share the same type
 template<class A, class B>
 using is_same_type = std::bool_constant<A::type == B::type>;
@@ -121,6 +139,12 @@ using is_same_kind = std::bool_constant<std::is_same_v<typename A::kind, typenam
 
 template<class A, class B>
 inline constexpr bool is_same_kind_v = std::is_same_v<typename A::kind, typename B::kind>;
+
+template<class A, class B>
+using is_same_measure = me::same_elements<A, B>;
+
+template<class A, class B>
+inline constexpr bool is_same_measure_v = me::same_elements_v<A, B>;
 
 // splits all unit concepts into exponents of magnitude 1
 template<class T>
