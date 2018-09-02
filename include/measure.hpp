@@ -283,49 +283,64 @@ namespace detail
 
   template<class List, int chunk>
   struct single_rm_A;
-  template<class List, int chunk, int rm, bool condition>
+  template<class List, int chunk, std::size_t rm, bool condition>
   struct single_rm_B;
 
-  template<class List, int chunk, int rm, bool condition>
-  struct single_rm_C
+  template<int chunk, class W>
+  struct single_rm_E
   {
-    // remove an element
-    using smaller_list = me::erase_t<rm, compoundify_op<List>>;
+    using tmp = single_rm_A<W, chunk - 1>;
 
-    // check OR recurse
-    template<class integral>
-    constexpr static auto inter()
-      -> std::enable_if_t<integral::value != 0, single_rm_A<smaller_list, integral::value - 1>>;
-    
-    template<class integral>
-    constexpr static auto inter()
-      -> std::enable_if_t<integral::value == 0, check<smaller_list>>;
-    
-    using bail_out = decltype(inter<std::integral_constant<int, chunk>>());
-    using w = typename bail_out::type;
-    using new_list = me::cons<me::nth_t<rm, compoundify_op<List>>, w>;
-    using sorted = compoundify_op<new_list>;
+    using type = typename tmp::type;
+    constexpr static bool value = tmp::value;
+  };
+  template<class W>
+  struct single_rm_E<0, W>
+  {
+    using tmp = check<W>;
 
-    // return
-    struct potential_res
+    using type = typename tmp::type;
+    constexpr static bool value = tmp::value;
+  };
+
+  template<class List, int chunk, std::size_t rm, class W>
+  struct single_rm_D
+  {
+    using bail_out = single_rm_E<chunk, W>;
+
+    template<class Garbage, bool v>
+    struct helper
     {
-      using type = sorted;
-      constexpr static bool value = true;
+      struct R
+      {
+        constexpr static bool value = true;
+        using type = compoundify_op<me::cons<me::nth_t<rm, List>, typename bail_out::type>>;
+      };
+      using type = R;
+    };
+    template<class Garbage>
+    struct helper<Garbage, false>
+    {
+      using type = single_rm_B<List, chunk, rm + 1, ((rm + 1) < me::length_v<List>)>;
     };
 
-    template<class W>
-    constexpr static auto ret_getter()
-      -> std::enable_if_t<W::value, potential_res>;
-    template<class W>
-    constexpr static auto ret_getter()
-      -> std::enable_if_t<!W::value, single_rm_B<compoundify_op<List>, chunk, rm + 1, (rm + 1 < me::length_v<compoundify_op<List>>)>>;
+    using tmp = typename helper<void, bail_out::value>::type;
 
-    using ret = decltype(ret_getter<bail_out>());
-
-    using type = typename ret::type;
-    constexpr static bool value = ret::value;
+    constexpr static bool value = tmp::value;
+    using type = typename tmp::type;
   };
-  template<class List, int chunk, int rm>
+
+  template<class List, int chunk, std::size_t rm, bool condition>
+  struct single_rm_C
+  {
+    using w = me::erase_t<rm, List>;
+
+    using tmp = single_rm_D<List, chunk, rm, w>;
+
+    using type = typename tmp::type;
+    constexpr static bool value = tmp::value;
+  };
+  template<class List, int chunk, std::size_t rm>
   struct single_rm_C<List, chunk, rm, false>
   {
     using tmp = single_rm_B<compoundify_op<List>, chunk, rm + 1, (rm + 1 < me::length_v<compoundify_op<List>>)>;
@@ -335,15 +350,15 @@ namespace detail
   };
 
 
-  template<class List, int chunk, int rm, bool condition>
+  template<class List, int chunk, std::size_t rm, bool condition>
   struct single_rm_B
   {
-    using tmp = single_rm_C<List, chunk, rm, (me::length_v<List> > 1)>;
+    using tmp = single_rm_C<compoundify_op<List>, chunk, rm, (me::length_v<compoundify_op<List>> > 1)>;
 
     using type = typename tmp::type;
-    constexpr static bool value = false;
+    constexpr static bool value = tmp::value;
   };
-  template<class List, int chunk, int rm>
+  template<class List, int chunk, std::size_t rm>
   struct single_rm_B<List, chunk, rm, false>
   {
     using type = List;
@@ -353,10 +368,10 @@ namespace detail
   template<class List, int chunk>
   struct single_rm_A // recurse
   {
-    using tmp = single_rm_B<List, chunk, 0, (0 < me::length_v<List>)>;
+    using res_t = single_rm_B<compoundify_op<List>, chunk, 0, (0 < me::length_v<compoundify_op<List>>)>;
 
-    using type = typename tmp::type;
-    constexpr static bool value = tmp::value;
+    using type = typename res_t::type;
+    constexpr static bool value = res_t::value;
   };
   template<class List>
   struct single_rm_A<List, -1> // recursion stop
@@ -374,7 +389,7 @@ namespace detail
 
     template<class H>
     constexpr static auto f()
-      -> std::enable_if_t<!H::value, single_rm_A<List, 0>>;
+      -> std::enable_if_t<!H::value, single_rm_A<compoundify_op<List>, 0>>;
 
     using res_t = decltype(f<tmp>());
     
@@ -405,7 +420,10 @@ struct compoundify<X<T...>>
     using type = me::sort_t<detail::kind_cmp, List>;
   };
 
-  using type = typename helper<-1, true, X<T...>>::type;
+  using tmp = typename helper<-1, true, X<T...>>::type;
+  using sorted = typename simplify<false, tmp>::type;
+
+  using type = sorted;
 };
 
 template<>
