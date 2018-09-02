@@ -473,12 +473,15 @@ struct simplify<shall_uncompoundify, me::X<>>
 template<class E>
 using is_exp_null = std::bool_constant<E::exponent == 0>;
 
-template<class L>
-using simplify_helper_t = me::filter_t<is_exp_null, typename simplify<true, me::universify<L>>::type>;
+template<class L, bool condition>
+using compoundifier = std::conditional_t<condition, compoundify_t<L>, L>;
 
-template<class L, class Default>
-using simplify_t = std::conditional_t<std::is_same_v<simplify_helper_t<L>, me::X<>>,
-                                        Default,
-                                        simplify_helper_t<L>>; 
+template<class L, bool shall_uncompoundify>
+using simplify_helper_t = me::filter_t<is_exp_null, typename simplify<shall_uncompoundify, me::universify<L>>::type>;
+
+template<class L, class Default, bool shall_compoundify = false, bool shall_uncompoundify = true>
+using simplify_t = std::conditional_t<std::is_same_v<simplify_helper_t<L, shall_uncompoundify>, me::X<>>,
+                                      Default,
+                                      compoundifier<simplify_helper_t<L, shall_uncompoundify>, shall_compoundify>>;
 
 }

@@ -39,10 +39,17 @@ private:
 
 
 ///// 
-template<class T>
-using simplify_unit_t = std::conditional_t<std::is_same_v<simplify_t<typename T::Units, typename T::Default>, typename T::Default>,
+template<class T, bool shall_compoundify = false, bool shall_uncompoundify = true>
+using simplify_unit_t = std::conditional_t<std::is_same_v<simplify_t<typename T::Units,
+                                                                     typename T::Default,
+                                                                     shall_compoundify,
+                                                                     shall_uncompoundify>,
+                                                          typename T::Default>,
                                            typename T::Default,
-                                           unit<simplify_t<typename T::Units, typename T::Default>, typename T::Default>
+                                           unit<simplify_t<typename T::Units,
+                                                           typename T::Default,
+                                                           shall_compoundify,
+                                                           shall_uncompoundify>, typename T::Default>
                                           >;
 
 }
