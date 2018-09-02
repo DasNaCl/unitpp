@@ -131,6 +131,22 @@ struct unit<X<Args...>, T>
     val *= b;
     return *this;
   }
+  template<class D>
+  constexpr auto operator/=(D&& b)
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<result_helper_t<D>, T>,
+                      decltype(*this)>
+  {
+    val /= b;
+    return *this;
+  }
+  template<class D>
+  constexpr auto operator/=(const D& b)
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<result_helper_t<D>, T>,
+                      decltype(*this)>
+  {
+    val /= b;
+    return *this;
+  }
 private:
   T val;
 };
