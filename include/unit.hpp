@@ -18,10 +18,11 @@
 
 #include <measure.hpp>
 
-namespace me
-{
 template<typename L, typename T = float>
 struct unit;
+
+namespace me
+{
 
 template<class u>
 using result_helper_t = std::remove_reference_t<std::remove_cv_t<u>>;
@@ -57,10 +58,12 @@ template<class u>
 using inverse_unit_t = typename inverse_unit<u>::type;
 
 ///// A 'generic' unit
+}
+
 template<class... Args, typename T>
-struct unit<X<Args...>, T>
+struct unit<me::X<Args...>, T>
 {
-  using Units = X<Args...>;
+  using Units = me::X<Args...>;
   using Default = T;
 
   constexpr unit() = default;
@@ -69,10 +72,10 @@ struct unit<X<Args...>, T>
   constexpr unit(const T& v) : val(v)
   {  }
   template<class u2>
-  constexpr unit(std::enable_if_t<same_unit_v<unit<X<Args...>, T>, u2>, u2> u) : val(u.raw())
+  constexpr unit(std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u) : val(u.raw())
   {  }
   template<class u2>
-  constexpr unit& operator=(std::enable_if_t<same_unit_v<unit<X<Args...>, T>, u2>, u2> u)
+  constexpr unit& operator=(std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u)
   {
     val = u.raw();
     return *this;
@@ -85,7 +88,7 @@ struct unit<X<Args...>, T>
   // addition and subtraction
   template<class u2>
   constexpr auto operator+=(u2&& b)
-    -> std::enable_if_t<same_unit_v<unit<X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val += b.raw();
     return *this;
@@ -93,7 +96,7 @@ struct unit<X<Args...>, T>
 
   template<class u2>
   constexpr auto operator+=(const u2& b)
-    -> std::enable_if_t<same_unit_v<unit<X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val += b.raw();
     return *this;
@@ -101,7 +104,7 @@ struct unit<X<Args...>, T>
 
   template<class u2>
   constexpr auto operator-=(u2&& b)
-    -> std::enable_if_t<same_unit_v<unit<X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val -= b.raw();
     return *this;
@@ -109,7 +112,7 @@ struct unit<X<Args...>, T>
 
   template<class u2>
   constexpr auto operator-=(const u2& b)
-    -> std::enable_if_t<same_unit_v<unit<X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val -= b.raw();
     return *this;
@@ -117,7 +120,7 @@ struct unit<X<Args...>, T>
   // scalar operations
   template<class D>
   constexpr auto operator*=(D&& b)
-  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<result_helper_t<D>, T>,
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<me::result_helper_t<D>, T>,
                       decltype(*this)>
   {
     val *= b;
@@ -125,7 +128,7 @@ struct unit<X<Args...>, T>
   }
   template<class D>
   constexpr auto operator*=(const D& b)
-  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<result_helper_t<D>, T>,
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<me::result_helper_t<D>, T>,
                       decltype(*this)>
   {
     val *= b;
@@ -133,7 +136,7 @@ struct unit<X<Args...>, T>
   }
   template<class D>
   constexpr auto operator/=(D&& b)
-  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<result_helper_t<D>, T>,
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<me::result_helper_t<D>, T>,
                       decltype(*this)>
   {
     val /= b;
@@ -141,7 +144,7 @@ struct unit<X<Args...>, T>
   }
   template<class D>
   constexpr auto operator/=(const D& b)
-  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<result_helper_t<D>, T>,
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<me::result_helper_t<D>, T>,
                       decltype(*this)>
   {
     val /= b;
@@ -152,7 +155,8 @@ private:
 };
 
 /////
-
+namespace me
+{
 
 template<class T, bool shall_compoundify = false, bool shall_uncompoundify = true>
 using simplify_unit_t = std::conditional_t<std::is_same_v<simplify_t<typename T::Units,
