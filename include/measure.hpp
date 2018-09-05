@@ -599,8 +599,7 @@ struct system_convert_check
   static_assert(me::is_measure_v<From>, "From should be a measure");
   static_assert(me::is_measure_v<To>, "To should be a measure");
 
-  static_assert(me::is_base_measure_v<From>, "From should be a base measure");
-  static_assert(me::is_base_measure_v<To>, "To should be a base measure");
+  // make sure you only get measures here
 };
 template<class From, class To>
 struct system_convert : public std::false_type
@@ -619,9 +618,9 @@ struct system_convert<From, To> : public std::true_type, public system_convert_c
 {                                                                                              \
   using type = To;                                                                             \
   template<class T>                                                                            \
-  constexpr T operator()(T);                                                                   \
+  constexpr T operator()(T) const;                                                             \
 };                                                                                             \
-template<> constexpr To system_convert<From, To>::operator()(To var)
+template<> constexpr To system_convert<From, To>::operator()(To var) const
 
 template<typename T>
 struct system_convert<T, T> : public std::true_type, public system_convert_check<T, T>
@@ -629,7 +628,7 @@ struct system_convert<T, T> : public std::true_type, public system_convert_check
   using type = T;
 
   template<class D>
-  constexpr D operator()(D id)
+  constexpr D operator()(D&& id) const
   { return id; }
 };
 
@@ -667,7 +666,7 @@ constexpr unit<me::X<To>, T> convert(unit<me::X<From>, T> val)
       {
         constexpr auto a = system_convert<typename kF::Base, To>();
         constexpr auto b = kF::StoB;
-        return { (a(b(val))) };
+        return { (a(b(val.raw()))) };
       }
       else
       {
@@ -689,7 +688,7 @@ constexpr unit<me::X<To>, T> convert(unit<me::X<From>, T> val)
       {
         constexpr auto a = kT::BtoS;
         constexpr auto b = system_convert<From, typename kT::Base>();
-        return { (a(b(val))) };
+        return { (a(b(val.raw()))) };
       }
       else
       {
