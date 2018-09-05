@@ -38,16 +38,111 @@ namespace detail
 
     return hash;
   }
+
+  template<class T>
+  struct times_10
+  {
+    constexpr auto operator()(T val) const
+    { return val * static_cast<T>(10); }
+  };
+
+  template<class T>
+  struct by_10
+  {
+    constexpr auto operator()(T val) const
+    { return val / static_cast<T>(10); }
+  };
+
+  template<std::size_t n, class T, template<class> class f>
+  struct repeat
+  {
+    constexpr auto operator()(T val) const
+    { return (repeat<n-1, T, f>()((f<T>()(val)))); }
+  };
+  template<class T, template<class> class f>
+  struct repeat<1, T, f>
+  {
+    constexpr auto operator()(T val) const
+    { return (f<T>()(val)); }
+  };
+  template<class T, template<class> class f>
+  struct repeat<0, T, f>
+  {
+    constexpr auto operator()(T val) const
+    { return val; }
+  };
+
+  template<std::size_t n, class T, template<class> class f>
+  inline constexpr repeat<n, T, f> repeat_v;
+}
+
+namespace scales
+{
+  // scales
+  template<class T> inline constexpr auto yotta_v = detail::repeat_v<24, T, detail::times_10>;
+  template<class T> inline constexpr auto zetta_v = detail::repeat_v<21, T, detail::times_10>;
+  template<class T> inline constexpr auto   exa_v = detail::repeat_v<18, T, detail::times_10>;
+  template<class T> inline constexpr auto  peta_v = detail::repeat_v<15, T, detail::times_10>;
+  template<class T> inline constexpr auto  tera_v = detail::repeat_v<12, T, detail::times_10>;
+  template<class T> inline constexpr auto  giga_v = detail::repeat_v< 9, T, detail::times_10>;
+  template<class T> inline constexpr auto  mega_v = detail::repeat_v< 6, T, detail::times_10>;
+  template<class T> inline constexpr auto  kilo_v = detail::repeat_v< 3, T, detail::times_10>;
+  template<class T> inline constexpr auto hecto_v = detail::repeat_v< 2, T, detail::times_10>;
+  template<class T> inline constexpr auto  deca_v = detail::repeat_v< 1, T, detail::times_10>;
+
+  template<class T> inline constexpr auto  deci_v = detail::repeat_v< 1, T, detail::by_10>;
+  template<class T> inline constexpr auto centi_v = detail::repeat_v< 2, T, detail::by_10>;
+  template<class T> inline constexpr auto milli_v = detail::repeat_v< 3, T, detail::by_10>;
+  template<class T> inline constexpr auto micro_v = detail::repeat_v< 6, T, detail::by_10>;
+  template<class T> inline constexpr auto  nano_v = detail::repeat_v< 9, T, detail::by_10>;
+  template<class T> inline constexpr auto  pico_v = detail::repeat_v<12, T, detail::by_10>;
+  template<class T> inline constexpr auto femto_v = detail::repeat_v<15, T, detail::by_10>;
+  template<class T> inline constexpr auto  atto_v = detail::repeat_v<18, T, detail::by_10>;
+  template<class T> inline constexpr auto zepto_v = detail::repeat_v<21, T, detail::by_10>;
+  template<class T> inline constexpr auto yocto_v = detail::repeat_v<24, T, detail::by_10>;
+
+  template<class T> using yotta = detail::repeat<24, T, detail::times_10>;
+  template<class T> using zetta = detail::repeat<21, T, detail::times_10>;
+  template<class T> using   exa = detail::repeat<18, T, detail::times_10>;
+  template<class T> using  peta = detail::repeat<15, T, detail::times_10>;
+  template<class T> using  tera = detail::repeat<12, T, detail::times_10>;
+  template<class T> using  giga = detail::repeat< 9, T, detail::times_10>;
+  template<class T> using  mega = detail::repeat< 6, T, detail::times_10>;
+  template<class T> using  kilo = detail::repeat< 3, T, detail::times_10>;
+  template<class T> using hecto = detail::repeat< 2, T, detail::times_10>;
+  template<class T> using  deca = detail::repeat< 1, T, detail::times_10>;
+
+  template<class T> using  deci = detail::repeat< 1, T, detail::by_10>;
+  template<class T> using centi = detail::repeat< 2, T, detail::by_10>;
+  template<class T> using milli = detail::repeat< 3, T, detail::by_10>;
+  template<class T> using micro = detail::repeat< 6, T, detail::by_10>;
+  template<class T> using  nano = detail::repeat< 9, T, detail::by_10>;
+  template<class T> using  pico = detail::repeat<12, T, detail::by_10>;
+  template<class T> using femto = detail::repeat<15, T, detail::by_10>;
+  template<class T> using  atto = detail::repeat<18, T, detail::by_10>;
+  template<class T> using zepto = detail::repeat<21, T, detail::by_10>;
+  template<class T> using yocto = detail::repeat<24, T, detail::by_10>;
 }
 
 enum class MeasureType
 {
-  Single,
+  Base,
   Compound,
-  Scaled,
+  Converted,
 };
 
-///// This is a measure, basically a triple
+template<class S, class f, class g, class B>
+struct scale_info
+{
+  using Scaled = S;
+  inline constexpr static auto StoB = f();
+  inline constexpr static auto BtoS = g();
+  using Base = B;
+
+  constexpr static std::uint64_t id = S::id;
+  constexpr static std::uint64_t base_id = S::base_id;
+};
+
 template<MeasureType t, class X, int n>
 struct measure
 {
@@ -68,7 +163,21 @@ struct measure
     else
       return V::id;
   }
+  template<typename V>
+  static constexpr std::uint64_t f()
+  {
+    if constexpr(me::is_list_v<V>)
+    {
+      if constexpr(me::is_list_empty_v<V>)
+        return 61;
+      else
+        return f<me::head<V>>() ^ (f<me::tail<V>>() << 11);
+    }
+    else
+      return V::base_id;
+  }
   static constexpr std::uint64_t id = std::integral_constant<std::uint64_t, h<X>()>::value;
+  static constexpr std::uint64_t base_id = std::integral_constant<std::uint64_t, f<X>()>::value;
 };
 
 namespace detail
@@ -94,12 +203,18 @@ template<class T>
 using accept_measures_only_kind = typename T::kind;
 template<class T>
 using accept_measures_only_exponent = decltype(std::declval<T>().exponent);
+template<class T>
+using accept_measures_only_id = decltype(std::declval<T>().id);
+template<class T>
+using accept_measures_only_base_id = decltype(std::declval<T>().base_id);
 
 // check if T is a measure or not
 template<class T>
 using is_measure = std::bool_constant<is_detected_v<accept_measures_only_kind, T>
                                    && is_detected_v<accept_measures_only_type, T>
-                                   && is_detected_v<accept_measures_only_exponent, T>>;
+                                   && is_detected_v<accept_measures_only_exponent, T>
+                                   && is_detected_v<accept_measures_only_id, T>
+                                   && is_detected_v<accept_measures_only_base_id, T>>;
 
 template<class T>
 constexpr bool is_measure_v = is_measure<T>::value;
@@ -107,6 +222,14 @@ constexpr bool is_measure_v = is_measure<T>::value;
 // check if T is a compound measure
 template<class T>
 constexpr bool is_compound_measure_v = T::type == MeasureType::Compound;
+
+// check if T is a converted measure
+template<class T>
+constexpr bool is_converted_measure_v = T::type == MeasureType::Converted;
+
+// check if T is a base measure
+template<class T>
+constexpr bool is_base_measure_v = T::type == MeasureType::Base;
 
 // inverses the exponents of given measures
 template<class L>
@@ -222,7 +345,7 @@ template<class T>
 struct add_exp<T, me::X<>>
 {
   // Fallback to single unit
-  using type = measure<MeasureType::Single, T, 0>;
+  using type = measure<MeasureType::Base, T, 0>;
 };
 
 template<class T, class E>
@@ -287,6 +410,9 @@ namespace detail
 {
   template<class A, class B>
   using kind_cmp = std::bool_constant<(A::id < B::id)>;
+
+  template<class A, class B>
+  using base_cmp = std::bool_constant<(A::base_id < B::base_id)>;
 
   template<class L>
   using compoundify_op = explode_t<sort_t<kind_cmp, L>>;
@@ -435,7 +561,7 @@ struct compoundify<X<T...>>
 
     using new_list = typename new_t::type;
     using type = typename helper<next_chunk,
-                                 (next_chunk < me::length_v<new_list>),
+                                 (static_cast<unsigned int>(next_chunk) < me::length_v<new_list>),
                                  detail::compoundify_op<new_list>>::type;
   };
   template<int chunk, class List>
@@ -458,9 +584,129 @@ struct compoundify<X<>>
 
 template<typename L>
 using compoundify_t = typename compoundify<detail::compoundify_op<L>>::type;
+}
+
+// convert a scaled
+template<class L, class T>
+struct unit;
+
+namespace me
+{
+
+template<class From, class To>
+struct system_convert_check
+{
+  static_assert(me::is_measure_v<From>, "From should be a measure");
+  static_assert(me::is_measure_v<To>, "To should be a measure");
+
+  static_assert(me::is_base_measure_v<From>, "From should be a base measure");
+  static_assert(me::is_base_measure_v<To>, "To should be a base measure");
+};
+template<class From, class To>
+struct system_convert : public std::false_type
+{
+  using type = To;
+
+  template<typename D = std::false_type>
+  constexpr void operator()(To)
+  { static_assert(D::value, ""); }
+};
+
+// can be used for e.g. meter to foot
+#define unitpp_declare_system_convert(From, To, var)                                           \
+template<>                                                                                     \
+struct system_convert<From, To> : public std::true_type, public system_convert_check<From, To> \
+{                                                                                              \
+  using type = To;                                                                             \
+  template<class T>                                                                            \
+  constexpr T operator()(T);                                                                   \
+};                                                                                             \
+template<> constexpr To system_convert<From, To>::operator()(To var)
+
+template<typename T>
+struct system_convert<T, T> : public std::true_type, public system_convert_check<T, T>
+{
+  using type = T;
+
+  template<class D>
+  constexpr D operator()(D id)
+  { return id; }
+};
+
+template<class From, class To>
+constexpr bool exists_system_convert_v = system_convert<From, To>::value;
+
+template<class To, class From, class T>
+constexpr unit<me::X<To>, T> convert(unit<me::X<From>, T> val)
+{
+  using kF = typename From::kind;
+  using kT = typename To::kind;
+  if constexpr(me::is_converted_measure_v<From>)
+  {
+    if constexpr(me::is_converted_measure_v<To>)
+    {
+      if constexpr(exists_system_convert_v<typename kF::Base, typename kT::Base>)
+      {
+        constexpr auto a = kT::BtoS;
+        constexpr auto b = system_convert<typename kF::Base, typename kT::Base>();
+        constexpr auto c = kF::StoB;
+        return { (a(b(c(val.raw())))) };
+      }
+      else
+      {
+        // if both are converted, they must not differ in their base
+        static_assert(std::is_same_v<typename kF::Base, typename kT::Base>, "Base should be the same");
+        constexpr auto a = kF::StoB;
+        constexpr auto b = kT::BtoS;
+        return { (a(b(val.raw()))) };
+      }
+    }
+    else
+    {
+      if constexpr(exists_system_convert_v<typename kF::Base, To>)
+      {
+        constexpr auto a = system_convert<typename kF::Base, To>();
+        constexpr auto b = kF::StoB;
+        return { (a(b(val))) };
+      }
+      else
+      {
+        static_assert(std::is_same_v<typename kF::Base, kT>, "To should be the base of the type you want to convert from");
+        static_assert(From::exponent == To::exponent, "Exponents should match");
+
+        auto tmp = kF::StoB(val.raw());
+        for(std::size_t i = 1; i < From::exponent; ++i)
+          tmp = kF::StoB(tmp);
+        return { tmp };
+      }
+    }
+  }
+  else
+  {
+    if constexpr(me::is_converted_measure_v<To>)
+    {
+      if constexpr(exists_system_convert_v<From, typename kT::Base>)
+      {
+        constexpr auto a = kT::BtoS;
+        constexpr auto b = system_convert<From, typename kT::Base>();
+        return { (a(b(val))) };
+      }
+      else
+      {
+        static_assert(std::is_same_v<kF, typename kT::Base>,
+                      "From should be the base of the type you want it to convert to");
+        return { (kT::BtoS(val.raw())) };
+      }
+    }
+    else
+    {
+      static_assert(exists_system_convert_v<From, To>, "Units should be convertible");
+      return { (system_convert<From, To>()(val.raw())) };
+    }
+  }
+}
 
 // simplify list of unit-kinds
-
 template<bool shall_uncompoundify, class... Args>
 struct simplify<shall_uncompoundify, me::X<Args...>>
 {
@@ -484,7 +730,7 @@ struct simplify<shall_uncompoundify, me::X<Args...>>
     using type = typename simplify<shall_uncompoundify, new_list>::type;
   };
 
-  using type = typename intermediate_simplify<(shall_uncompoundify ? hd::type : MeasureType::Single),
+  using type = typename intermediate_simplify<(shall_uncompoundify ? hd::type : MeasureType::Base),
                                                hd, tl>::type;
 };
 

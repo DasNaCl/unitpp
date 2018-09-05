@@ -154,6 +154,91 @@ private:
   T val;
 };
 
+// conversion
+template<class L1, class T1, class L2, class T2>
+constexpr auto unit_cast(unit<L2, T2>&& from)
+  -> std::enable_if_t<me::same_unit_v<unit<L1, T1>, unit<L2, T2>>, unit<L1, T1>> // <- to
+{
+  return { from.raw() };
+}
+template<class L1, class T1, class L2, class T2>
+constexpr auto unit_cast(const unit<L2, T2>& from)
+  -> std::enable_if_t<me::same_unit_v<unit<L1, T1>, unit<L2, T2>>, unit<L1, T1>> // <- to
+{
+  return { from.raw() };
+}
+
+namespace me::detail
+{
+  template<class, class>
+  struct unit_converter;
+
+  template<class L1, class T1, class L2, class T2>
+  struct unit_converter<unit<L1, T1>, unit<L2, T2>>
+  {
+    template<class, class, class>
+    struct helper;
+    template<class Garbage, class... Args1, class... Args2>
+    struct helper<Garbage, me::X<Args1...>, me::X<Args2...>>
+    {
+      static_assert(me::length_v<me::X<Args1...>> == me::length_v<me::X<Args2...>>,
+                    "Amount of units should be equal");
+      using type = me::X<Args2...>; // second list is the one we want to convert to
+
+      constexpr static T1 f(T2 from)
+      { return helper<Garbage, tail<me::X<Args1...>>,
+                      tail<me::X<Args2...>>>::f(me::convert<me::head<me::X<Args1...>>,
+                                                            me::head<me::X<Args2...>>,
+                                                            T2>({ static_cast<T1>(from) }).raw()); }
+    };
+    template<class Garbage>
+    struct helper<Garbage, me::X<>, me::X<>>
+    {
+      constexpr static T1 f(T2 from)
+      { return static_cast<T1>(from); }
+    };
+
+    using nl1 = me::sort_t<me::detail::base_cmp, L1>;
+    using nl2 = me::sort_t<me::detail::base_cmp, L2>;
+
+    constexpr static unit<L1, T1> f(unit<L2, T2>&& t2)
+    { return { helper<void, nl1, nl2>::f(t2.raw()) }; }
+    constexpr static unit<L1, T1> f(const unit<L2, T2>& t2)
+    { return { helper<void, nl1, nl2>::f(t2.raw()) }; }
+  };
+
+  template<class>
+  struct unit_info;
+  template<class L, class T>
+  struct unit_info<unit<L, T>>
+  {
+    using list = L;
+    using underlying_type = T;
+  };
+  template<class U>
+  using measure_list_t = typename unit_info<U>::list;
+  template<class U>
+  using underlying_type_t = typename unit_info<U>::underlying_type;
+}
+
+template<class U, class L2, class T2>
+constexpr auto unit_cast(unit<L2, T2>&& from)
+  -> std::enable_if_t<!me::same_unit_v<U, unit<L2, T2>>, U> // <- to
+{
+  using A = unit<me::detail::measure_list_t<U>, me::detail::underlying_type_t<U>>;
+  using B = unit<L2, T2>;
+
+  return { me::detail::unit_converter<A, B>::f(from) };
+}
+template<class U, class L2, class T2>
+constexpr auto unit_cast(const unit<L2, T2>& from)
+  -> std::enable_if_t<!me::same_unit_v<U, unit<L2, T2>>, U> // <- to
+{
+  using A = unit<me::detail::measure_list_t<U>, me::detail::underlying_type_t<U>>;
+  using B = unit<L2, T2>;
+
+  return { me::detail::unit_converter<A, B>::f(from) };
+}
 /////
 namespace me
 {
@@ -289,4 +374,3 @@ constexpr auto operator/(const T& b, const u& a)
 }
 
 }
-
