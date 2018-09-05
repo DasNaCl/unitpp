@@ -21,7 +21,7 @@ std::cin >> impulse;
 std::cout << "\nEnergy (in " << info<Joule>() << "): "
           << in<Joule>(impulse * velocity) << std::endl;
 
-auto energy = impulse * velocity | (opt::unscale | opt::combine);
+auto energy = impulse * velocity | (opt::unscale | opt::combine | opt::basify);
 static_assert(std::is_same_v<decltype(energy), decltype(kg * m<2> / s<2>)>,
               "Energy simplified correctly");
 ```
