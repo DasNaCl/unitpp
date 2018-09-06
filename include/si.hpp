@@ -16,7 +16,7 @@
 
 #pragma once 
 
-#include <unit.hpp>
+#include <info.hpp>
 
 #define unitpp_define_quantity_helper(longname, basename)                                    \
 struct longname { static constexpr std::uint64_t id = me::detail::CRC64(#longname);          \
@@ -242,3 +242,39 @@ unitpp_define_compound_conversion(si::Gray, si::Meter<2>, si::Second<-2>)
 
 unitpp_define_compound_conversion(si::Katal, si::Mole<1>, si::Second<-1>)
 
+
+
+
+namespace me
+{
+template<int exp, class StrT>
+struct measure_info<si::Meter<exp>, StrT>
+{
+  constexpr static StrT symbol() { return "m"; }
+  constexpr static StrT name()   { return "Meter"; }
+};
+template<int exp, class StrT>
+struct measure_info<si::Kilogram<exp>, StrT>
+{
+  constexpr static StrT symbol() { return "kg"; }
+  constexpr static StrT name()   { return "Kilogram"; }
+};
+template<int exp, class StrT>
+struct measure_info<si::Second<exp>, StrT>
+{
+  constexpr static StrT symbol() { return "s"; }
+  constexpr static StrT name()   { return "Second"; }
+};
+template<int exp, class StrT>
+struct measure_info<si::Joule<exp>, StrT>
+{
+  constexpr static StrT symbol() { return "J"; }
+  constexpr static StrT name()   { return "Joule"; }
+};
+template<int exp, class StrT>
+struct measure_info<si::Watt<exp>, StrT>
+{
+  constexpr static StrT symbol() { return "W"; }
+  constexpr static StrT name()   { return "Watt"; }
+};
+}
