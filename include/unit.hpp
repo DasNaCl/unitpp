@@ -24,6 +24,16 @@ struct unit;
 namespace me
 {
 
+template<class U>
+struct is_unit : public std::false_type
+{  };
+template<class L, class T>
+struct is_unit<unit<L, T>> : public std::true_type
+{  };
+
+template<class U>
+inline constexpr bool is_unit_v = is_unit<U>::value;
+
 namespace detail
 {
 template<class>
@@ -47,13 +57,17 @@ template<class u>
 using sort_unit_t = unit<me::sort_t<me::detail::base_cmp, detail::measure_list_t<u>>, detail::underlying_type_t<u>>;
 
 template<class, class>
-struct same_unit;
+struct same_unit : public std::false_type {};
 template<class L1, class T1, class L2, class T2>
-struct same_unit<unit<L1, T1>, unit<L2, T2>> : public me::is_same_measure<L1, L2>
-{  };
+struct same_unit<unit<L1, T1>, unit<L2, T2>>
+{
+  using nL1 = detail::measure_list_t<sort_unit_t<unit<L1, T1>>>;
+  using nL2 = detail::measure_list_t<sort_unit_t<unit<L2, T2>>>;
+
+  constexpr static bool value = me::is_same_measure<result_helper_t<nL1>, result_helper_t<nL2>>::value;
+};
 template<class A, class B>
-inline constexpr bool same_unit_v = same_unit<result_helper_t<sort_unit_t<A>>,
-                                              result_helper_t<sort_unit_t<B>>>::value;
+inline constexpr bool same_unit_v = same_unit<A, B>::value;
 
 // concats the unit list of two units
 template<class u1, class u2>
@@ -90,10 +104,10 @@ struct unit<me::X<Args...>, T>
   constexpr unit(T v) : val(v)
   {  }
   template<class u2>
-  constexpr unit(std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u) : val(u.raw())
+  constexpr unit(std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u) : val(u.raw())
   {  }
   template<class u2>
-  constexpr unit& operator=(std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u)
+  constexpr unit& operator=(std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u)
   {
     val = u.raw();
     return *this;
@@ -106,7 +120,7 @@ struct unit<me::X<Args...>, T>
   // addition and subtraction
   template<class u2>
   constexpr auto operator+=(u2 b)
-    -> std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val += b.raw();
     return *this;
@@ -114,7 +128,7 @@ struct unit<me::X<Args...>, T>
 
   template<class u2>
   constexpr auto operator-=(u2 b)
-    -> std::enable_if_t<me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val -= b.raw();
     return *this;
@@ -137,9 +151,18 @@ struct unit<me::X<Args...>, T>
     val /= b;
     return *this;
   }
+
+  ////
+  // streams
+  template<class IS, class M, class D>
+  friend IS& operator>>(IS& is, unit<M, D>& u);
 private:
   T val;
 };
+
+template<class IS, class M, class D>
+IS& operator>>(IS& is, unit<M, D>& u)
+{ return is >> u.val; }
 
 namespace me
 {
@@ -291,7 +314,7 @@ namespace me::detail
 
 template<class U1, class U2>
 constexpr auto unit_cast(U2 from)
-  -> std::enable_if_t<!me::same_unit_v<U1, U2>, U1> // <- to
+  -> std::enable_if_t<me::is_unit_v<U1> && me::is_unit_v<U2> && !me::same_unit_v<U1, U2>, U1> // <- to
 {
   using A = me::explode_t<me::uncompoundify<me::detail::measure_list_t<U1>>>;
   using B = me::explode_t<me::uncompoundify<me::detail::measure_list_t<U2>>>;
@@ -307,18 +330,19 @@ namespace me
 {
 
 
+
 //// operators
 // addition and subtraction
 template<class u1, class u2>
 constexpr auto operator+(u1 a, u2 b)
-  -> std::enable_if_t<same_unit_v<u1, u2>, result_helper_t<u1>>
+  -> std::enable_if_t<(is_unit_v<u1> && is_unit_v<u2>) && same_unit_v<u1, u2>, result_helper_t<u1>>
 {
   return { a.raw() + b.raw() };
 }
 
 template<class u1, class u2>
 constexpr auto operator-(u1 a, u2 b)
-  -> std::enable_if_t<same_unit_v<u1, u2>, result_helper_t<u1>>
+  -> std::enable_if_t<is_unit_v<u1> && is_unit_v<u2> && same_unit_v<u1, u2>, result_helper_t<u1>>
 {
   return { a.raw() - b.raw() };
 }
@@ -326,14 +350,14 @@ constexpr auto operator-(u1 a, u2 b)
 // multiplication and division
 template<class u1, class u2>
 constexpr auto operator*(u1 a, u2 b)
-  -> simplify_unit_t<mesh_together_t<u1, u2>>
+  -> std::enable_if_t<is_unit_v<u1> && is_unit_v<u2>, simplify_unit_t<mesh_together_t<u1, u2>>>
 {
   return { a.raw() * b.raw() };
 }
 
 template<class u1, class u2>
 constexpr auto operator/(u1 a, u2 b)
-  -> simplify_unit_t<mesh_together_t<u1, inverse_unit_t<u2>>>
+  -> std::enable_if_t<is_unit_v<u1> && is_unit_v<u2>, simplify_unit_t<mesh_together_t<u1, inverse_unit_t<u2>>>>
 {
   return { a.raw() / b.raw() };
 }
@@ -341,28 +365,28 @@ constexpr auto operator/(u1 a, u2 b)
 // scalar operations
 template<class u, class T>
 constexpr auto operator*(u a, T b)
-  -> std::enable_if_t<std::is_arithmetic_v<T> || std::is_same_v<result_helper_t<T>, typename u::Default>,
+  -> std::enable_if_t<std::is_arithmetic_v<T> || (is_unit_v<u> && std::is_same_v<result_helper_t<T>, typename u::Default>),
                       result_helper_t<u>>
 {
   return { a.raw() * b };
 }
 template<class u, class T>
 constexpr auto operator*(T b, u a)
-  -> std::enable_if_t<std::is_arithmetic_v<T> || std::is_same_v<result_helper_t<T>, typename u::Default>,
+  -> std::enable_if_t<std::is_arithmetic_v<T> || (is_unit_v<u> && std::is_same_v<result_helper_t<T>, typename u::Default>),
                       result_helper_t<u>>
 {
   return { b * a.raw() };
 }
 template<class u, class T>
 constexpr auto operator/(u a, T b)
-  -> std::enable_if_t<std::is_arithmetic_v<T> || std::is_same_v<result_helper_t<T>, typename u::Default>,
+  -> std::enable_if_t<std::is_arithmetic_v<T> || (is_unit_v<u> && std::is_same_v<result_helper_t<T>, typename u::Default>),
                       result_helper_t<u>>
 {
   return { a.raw() / b };
 }
 template<class u, class T>
 constexpr auto operator/(T b, u a)
-  -> std::enable_if_t<std::is_arithmetic_v<T> || std::is_same_v<result_helper_t<T>, typename u::Default>,
+  -> std::enable_if_t<std::is_arithmetic_v<T> || (is_unit_v<u> && std::is_same_v<result_helper_t<T>, typename u::Default>),
                       inverse_unit_t<result_helper_t<u>>>
 {
   return { b / a.raw() };
