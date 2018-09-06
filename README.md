@@ -18,8 +18,8 @@ auto velocity = cm / ms;
 std::cout << "Enter impulse (in " << info(impulse) << "): ";
 std::cin >> impulse;
 
-std::cout << "\nEnergy (in " << info<Joule>() << "): "
-          << in<Joule>(impulse * velocity) << std::endl;
+std::cout << "\nEnergy"
+          << info<Joule<1>>(impulse * velocity) << std::endl;
 
 auto energy = impulse * velocity | (opt::unscale | opt::combine | opt::basify);
 static_assert(std::is_same_v<decltype(energy), decltype(kg * m<2> / s<2>)>,
