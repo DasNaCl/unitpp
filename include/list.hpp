@@ -161,14 +161,21 @@ template<template<class> class P, class... H>
 struct find<P, X<H...>> : public std::conditional_t<P<head<X<H...>>>::value,
                                                     std::true_type,
                                                     typename find<P, tail<X<H...>>>::type>
-{  };
+{
+  using object = std::conditional_t<P<head<X<H...>>>::value,
+                                    head<X<H...>>,
+                                    typename find<P, tail<X<H...>>>::object>;
+};
 
 template<template<class> class P>
 struct find<P, X<>> : public std::false_type
-{  };
+{ using object = void; };
 
 template<template<class> class P, class H>
 inline constexpr bool find_v = find<P, H>::value;
+
+template<template<class> class P, class H>
+using find_t = typename find<P, H>::object;
 
 // yields true if predicate is true for all members in the given list
 template<template<class> class P, class H>

@@ -237,8 +237,10 @@ struct inverse_measures;
 template<class... Args>
 struct inverse_measures<me::X<Args...>>
 {
-  using m = me::head<me::X<Args...>>;
-  using type = me::cons<measure<m::type, typename m::kind, -1 * m::exponent>, me::tail<me::X<Args...>>>;
+  using m = typename me::head<me::X<Args...>>;
+  using tl = me::tail<me::X<Args...>>;
+  using type = me::cons<measure<m::type, typename m::kind, -1 * m::exponent>,
+                        typename inverse_measures<tl>::type>;
 };
 template<>
 struct inverse_measures<me::X<>>
@@ -353,18 +355,32 @@ using add_exp_t = typename add_exp<T, E>::type;
 
 // universify compound measures
 template<class T>
-struct uncompoundify_helper
-{ using type = T; /*ugly*/ };
+struct uncompoundify_helper;
 
-template<typename... T>
-struct uncompoundify_helper<X<T...>>
+template<typename... D>
+struct uncompoundify_helper<X<D...>>
 {
-  using hd = head<X<T...>>;
+  template<class H, int val>
+  struct helper
+  { using type = H; /*ugly*/ };
 
-  using e = std::conditional_t<is_compound_measure_v<hd>,
-                               typename uncompoundify_helper<typename hd::kind>::type,
-                               X<hd>>;
-  using type = conc<e, typename uncompoundify_helper<tail<X<T...>>>::type>;
+  template<class... T, int exp>
+  struct helper<me::X<T...>, exp>
+  {
+    using hd = head<X<T...>>;
+
+    using obj = std::conditional_t<is_compound_measure_v<hd>,
+                                   typename helper<typename hd::kind, exp * hd::exponent>::type,
+                                   X<measure<hd::type, typename hd::kind, exp * hd::exponent>>>;
+    using type = conc<obj, typename helper<tail<X<T...>>, exp>::type>;
+  };
+  template<int exp>
+  struct helper<me::X<>, exp>
+  {
+    using type = me::X<>;
+  };
+
+  using type = typename helper<X<D...>, 1>::type;
 };
 
 template<>
@@ -584,14 +600,6 @@ struct compoundify<X<>>
 
 template<typename L>
 using compoundify_t = typename compoundify<detail::compoundify_op<L>>::type;
-}
-
-// convert a scaled
-template<class L, class T>
-struct unit;
-
-namespace me
-{
 
 template<class From, class To>
 struct system_convert_check
@@ -634,76 +642,6 @@ struct system_convert<T, T> : public std::true_type, public system_convert_check
 
 template<class From, class To>
 constexpr bool exists_system_convert_v = system_convert<From, To>::value;
-
-template<class To, class From, class T>
-constexpr unit<me::X<To>, T> convert(unit<me::X<From>, T> val)
-{
-  using kF = typename From::kind;
-  using kT = typename To::kind;
-  if constexpr(me::is_converted_measure_v<From>)
-  {
-    if constexpr(me::is_converted_measure_v<To>)
-    {
-      if constexpr(exists_system_convert_v<typename kF::Base, typename kT::Base>)
-      {
-        constexpr auto a = kT::BtoS;
-        constexpr auto b = system_convert<typename kF::Base, typename kT::Base>();
-        constexpr auto c = kF::StoB;
-        return { (a(b(c(val.raw())))) };
-      }
-      else
-      {
-        // if both are converted, they must not differ in their base
-        static_assert(std::is_same_v<typename kF::Base, typename kT::Base>, "Base should be the same");
-        constexpr auto a = kF::StoB;
-        constexpr auto b = kT::BtoS;
-        return { (a(b(val.raw()))) };
-      }
-    }
-    else
-    {
-      if constexpr(exists_system_convert_v<typename kF::Base, To>)
-      {
-        constexpr auto a = system_convert<typename kF::Base, To>();
-        constexpr auto b = kF::StoB;
-        return { (a(b(val.raw()))) };
-      }
-      else
-      {
-        static_assert(std::is_same_v<typename kF::Base, kT>, "To should be the base of the type you want to convert from");
-        static_assert(From::exponent == To::exponent, "Exponents should match");
-
-        auto tmp = kF::StoB(val.raw());
-        for(std::size_t i = 1; i < From::exponent; ++i)
-          tmp = kF::StoB(tmp);
-        return { tmp };
-      }
-    }
-  }
-  else
-  {
-    if constexpr(me::is_converted_measure_v<To>)
-    {
-      if constexpr(exists_system_convert_v<From, typename kT::Base>)
-      {
-        constexpr auto a = kT::BtoS;
-        constexpr auto b = system_convert<From, typename kT::Base>();
-        return { (a(b(val.raw()))) };
-      }
-      else
-      {
-        static_assert(std::is_same_v<kF, typename kT::Base>,
-                      "From should be the base of the type you want it to convert to");
-        return { (kT::BtoS(val.raw())) };
-      }
-    }
-    else
-    {
-      static_assert(exists_system_convert_v<From, To>, "Units should be convertible");
-      return { (system_convert<From, To>()(val.raw())) };
-    }
-  }
-}
 
 // simplify list of unit-kinds
 template<bool shall_uncompoundify, class... Args>
@@ -752,5 +690,37 @@ template<class L, class Default, bool shall_compoundify = false, bool shall_unco
 using simplify_t = std::conditional_t<std::is_same_v<simplify_helper_t<L, shall_uncompoundify>, me::X<>>,
                                       Default,
                                       compoundifier<simplify_helper_t<L, shall_uncompoundify>, shall_compoundify>>;
+
+template<class>
+struct basify_converted_units;
+
+template<class... Args>
+struct basify_converted_units<me::X<Args...>>
+{
+  using hd = me::head<me::X<Args...>>;
+
+  template<class H>
+  struct helper
+  { using type = H; };
+
+  template<class H, int n>
+  struct helper<measure<MeasureType::Converted, H, n>>
+  {
+    using type = typename H::Base;
+  };
+
+  using type = me::conc<me::X<typename helper<hd>::type>,
+                        typename basify_converted_units<me::tail<me::X<Args...>>>::type>;
+};
+
+template<>
+struct basify_converted_units<me::X<>>
+{
+  using type = me::X<>;
+};
+
+// todo: support converted compound units
+template<class L>
+using basify_converted_units_t = typename basify_converted_units<me::uncompoundify<L>>::type;
 
 }
