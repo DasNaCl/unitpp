@@ -109,20 +109,37 @@ constexpr bool is_measure_v = is_measure<T>::value;
 namespace detail
 {
   template<class T>
-  struct measure_type_deducer
+  struct measure_deducer
   { static_assert(is_measure_v<T>, "Can't deduce the MeasureType from a non-measure"); };
 
   template<MeasureType MT, class K, int n>
-  struct measure_type_deducer<measure<MT, K, n>>
-  { inline static constexpr MeasureType value = MT; };
+  struct measure_deducer<measure<MT, K, n>>
+  {
+    inline static constexpr MeasureType measure_type = MT;
+    using kind = K;
+  };
 }
 
 template<class T>
-inline constexpr bool is_base_measure_v = detail::measure_type_deducer<T>::value == MeasureType::Base;
+inline constexpr bool is_base_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Base;
 template<class T>
-inline constexpr bool is_compound_measure_v = detail::measure_type_deducer<T>::value == MeasureType::Compound;
+inline constexpr bool is_compound_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Compound;
 template<class T>
-inline constexpr bool is_converted_measure_v = detail::measure_type_deducer<T>::value == MeasureType::Converted;
+inline constexpr bool is_converted_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Converted;
+
+template<class A, class B>
+using is_same_measure_type = std::bool_constant<
+                              detail::measure_deducer<A>::measure_type ==
+                                detail::measure_deducer<B>::measure_type>;
+
+template<class A, class B>
+inline constexpr bool is_same_measure_type_v = is_same_measure_type<A, B>::value;
+
+template<class A, class B>
+using is_same_kind = std::is_same<typename detail::measure_deducer<A>::kind,
+                                  typename detail::measure_deducer<B>::kind>;
+template<class A, class B>
+inline constexpr bool is_same_kind_v = is_same_kind<A, B>::value;
 
 }
 }
