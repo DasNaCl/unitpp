@@ -23,15 +23,15 @@ namespace unitpp
 namespace detail
 {
   template<class T, class L>
-  struct add_exp
+  struct add_exponents
   {
     static_assert(tmpl::is_list_v<L>, "Expecting a list of measures");
   };
 
   template<class T, class... Args>
-  struct add_exp<T, tmpl::X<Args...>>
+  struct add_exponents<T, tmpl::X<Args...>>
   {
-    using rec = typename add_exp<T, tmpl::tail<tmpl::X<Args...>>>::type;
+    using rec = typename add_exponents<T, tmpl::tail<tmpl::X<Args...>>>::type;
 
     template<class A, class B>
     struct add
@@ -52,13 +52,13 @@ namespace detail
   };
 
   template<class T>
-  struct add_exp<T, tmpl::X<>>
+  struct add_exponents<T, tmpl::X<>>
   {
     // Fallback to single unit
     using type = measure<MeasureType::Base, T, 0>;
   };
 
   template<class T, class E>
-  using add_exp_t = typename add_exp<T, E>::type;
+  using add_exponets_t = typename add_exponents<T, E>::type;
 }
 }
