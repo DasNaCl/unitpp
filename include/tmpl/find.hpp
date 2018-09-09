@@ -62,5 +62,23 @@ namespace tmpl
 
   template<template<class> class P, class H>
   using find_t = typename find<P, H>::object;
+
+  template<class E, class... H>
+  struct find_same
+  {
+    template<class T>
+    using is_same_trait = std::is_same<E, T>;
+
+    inline static constexpr bool value = find_v<is_same_trait, X<H...>>;
+  };
+
+  template<class E, class... H>
+  inline constexpr bool find_same_v = find_same<E, H...>::value;
+
+  template<class H>
+  using find_list = find<is_list, H>;
+
+  template<class H>
+  inline constexpr bool find_list_v = find_list<H>::value;
 }
 }

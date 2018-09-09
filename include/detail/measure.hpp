@@ -141,5 +141,7 @@ using is_same_kind = std::is_same<typename detail::measure_deducer<A>::kind,
 template<class A, class B>
 inline constexpr bool is_same_kind_v = is_same_kind<A, B>::value;
 
+template<class A, class B>
+using is_exact_same_measure = tmpl::same_elements<A, B>;
 }
 }
