@@ -17,6 +17,7 @@
 #pragma once 
 
 #include <tmpl/list.hpp>
+#include <tmpl/same_elements.hpp>
 #include <detail/is_detected.hpp>
 
 #include <type_traits>
@@ -95,7 +96,14 @@ template<class T>
 using accept_measures_only_id = decltype(std::declval<T>().id);
 template<class T>
 using accept_measures_only_base_id = decltype(std::declval<T>().base_id);
+template<class K>
+using measure_kind_type_of_id = decltype(std::declval<K>().id);
 }
+
+template<class M>
+using measure_has_valid_kind = std::bool_constant<is_detected_v<detected::measure_kind_type_of_id, M>>;
+template<class M>
+constexpr bool measure_has_valid_kind_v = measure_has_valid_kind<M>::value;
 
 template<class T>
 using is_measure = std::bool_constant<is_detected_v<detected::accept_measures_only_kind, T>
@@ -126,6 +134,10 @@ template<class T>
 inline constexpr bool is_compound_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Compound;
 template<class T>
 inline constexpr bool is_converted_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Converted;
+template<class E>
+using is_exp_null = std::bool_constant<E::exponent == 0>;
+template<class E>
+inline constexpr bool is_exp_null_v = is_exp_null<E>::value;
 
 template<class A, class B>
 using is_same_measure_type = std::bool_constant<
