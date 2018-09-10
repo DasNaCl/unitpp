@@ -19,10 +19,10 @@
 #include <tmpl/sort.hpp>
 #include <tmpl/erase.hpp>
 #include <tmpl/nth.hpp>
-#include <simplify.hpp>
-#include <measure.hpp>
-#include <detail/explode.hpp>
 #include <detail/exists_compound.hpp>
+#include <detail/simplify.hpp>
+#include <detail/explode.hpp>
+#include <measure.hpp>
 
 namespace unitpp
 {
