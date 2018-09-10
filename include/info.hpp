@@ -36,7 +36,7 @@ struct info
                                                        unitpp::detail::underlying_type_t<U>, false, true>,
                      unitpp::simplify_t<unitpp::detail::measure_list_t<D>,
                                         unitpp::detail::underlying_type_t<D>, false, true>>>>
-  info(D u) : val(std::to_string(u.raw()))
+  info(D u) : val(std::to_string(u.val))
   {  }
   template<class OS, class D, class StrD>
   friend OS& operator<<(OS& os, const info<D, StrD>& inf);
