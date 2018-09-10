@@ -47,10 +47,12 @@ struct scale_info
   constexpr static std::uint64_t base_id = S::base_id;
 };
 
-template<MeasureType t, class H, int n>
+}
+
+template<detail::MeasureType t, class H, int n>
 struct measure
 {
-  static constexpr MeasureType type = t;
+  static constexpr detail::MeasureType type = t;
   using kind = H;
   static constexpr int exponent = n;
 
@@ -101,16 +103,16 @@ using measure_kind_type_of_id = decltype(std::declval<K>().id);
 }
 
 template<class M>
-using measure_has_valid_kind = std::bool_constant<is_detected_v<detected::measure_kind_type_of_id, M>>;
+using measure_has_valid_kind = std::bool_constant<detail::is_detected_v<detected::measure_kind_type_of_id, M>>;
 template<class M>
 constexpr bool measure_has_valid_kind_v = measure_has_valid_kind<M>::value;
 
 template<class T>
-using is_measure = std::bool_constant<is_detected_v<detected::accept_measures_only_kind, T>
-                                   && is_detected_v<detected::accept_measures_only_type, T>
-                                   && is_detected_v<detected::accept_measures_only_exponent, T>
-                                   && is_detected_v<detected::accept_measures_only_id, T>
-                                   && is_detected_v<detected::accept_measures_only_base_id, T>>;
+using is_measure = std::bool_constant<detail::is_detected_v<detected::accept_measures_only_kind, T>
+                                   && detail::is_detected_v<detected::accept_measures_only_type, T>
+                                   && detail::is_detected_v<detected::accept_measures_only_exponent, T>
+                                   && detail::is_detected_v<detected::accept_measures_only_id, T>
+                                   && detail::is_detected_v<detected::accept_measures_only_base_id, T>>;
 template<class T>
 constexpr bool is_measure_v = is_measure<T>::value;
 
@@ -129,11 +131,11 @@ namespace detail
 }
 
 template<class T>
-inline constexpr bool is_base_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Base;
+inline constexpr bool is_base_measure_v = detail::measure_deducer<T>::measure_type == detail::MeasureType::Base;
 template<class T>
-inline constexpr bool is_compound_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Compound;
+inline constexpr bool is_compound_measure_v = detail::measure_deducer<T>::measure_type == detail::MeasureType::Compound;
 template<class T>
-inline constexpr bool is_converted_measure_v = detail::measure_deducer<T>::measure_type == MeasureType::Converted;
+inline constexpr bool is_converted_measure_v = detail::measure_deducer<T>::measure_type == detail::MeasureType::Converted;
 template<class E>
 using is_exp_null = std::bool_constant<E::exponent == 0>;
 template<class E>
@@ -155,5 +157,6 @@ inline constexpr bool is_same_kind_v = is_same_kind<A, B>::value;
 
 template<class A, class B>
 using is_exact_same_measure = tmpl::same_elements<A, B>;
-}
+template<class A, class B>
+inline constexpr bool is_exact_same_measure_v = is_exact_same_measure<A, B>::value;
 }

@@ -16,7 +16,7 @@
 
 #pragma once 
 
-#include <detail/measure.hpp>
+#include <measure.hpp>
 #include <tmpl/list.hpp>
 
 namespace unitpp

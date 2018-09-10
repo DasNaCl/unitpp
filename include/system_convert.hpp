@@ -16,15 +16,15 @@
 
 #pragma once 
 
-#include <detail/measure.hpp>
+#include <measure.hpp>
 
 namespace unitpp
 {
   template<class From, class To>
   struct system_convert_check
   {
-    static_assert(detail::is_measure_v<From>, "From should be a measure");
-    static_assert(detail::is_measure_v<To>, "To should be a measure");
+    static_assert(is_measure_v<From>, "From should be a measure");
+    static_assert(is_measure_v<To>, "To should be a measure");
 
     // make sure you only get measures here
   };

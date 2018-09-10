@@ -19,19 +19,19 @@
 #include <tmpl/sort.hpp>
 #include <tmpl/erase.hpp>
 #include <tmpl/nth.hpp>
-#include <detail/measure.hpp>
+#include <simplify.hpp>
+#include <measure.hpp>
 #include <detail/explode.hpp>
 #include <detail/exists_compound.hpp>
 
 namespace unitpp
 {
-  template<bool uncompoundify, class L>
-  struct simplify; // <- we need to declare it here to be able to use it in compoundify
-
+namespace detail
+{
   template<class T>
   struct compoundify;
 
-  namespace detail
+  namespace hidden
   {
     template<class A, class B>
     using kind_cmp = std::bool_constant<(A::id < B::id)>;
@@ -179,7 +179,7 @@ namespace unitpp
     template<int chunk, bool loop_cond, class List>
     struct helper
     {
-      using new_t = detail::single_rm_A<detail::compoundify_op<List>, chunk>;
+      using new_t = hidden::single_rm_A<hidden::compoundify_op<List>, chunk>;
 
       constexpr static bool bail_out = new_t::value;
       constexpr static int next_chunk = (bail_out ? -1 : (chunk + 1));
@@ -187,12 +187,12 @@ namespace unitpp
       using new_list = typename new_t::type;
       using type = typename helper<next_chunk,
                                    (static_cast<unsigned int>(next_chunk) < tmpl::length_v<new_list>),
-                                   detail::compoundify_op<new_list>>::type;
+                                   hidden::compoundify_op<new_list>>::type;
     };
     template<int chunk, class List>
     struct helper<chunk, false, List>
     {
-      using type = tmpl::sort_t<detail::kind_cmp, List>;
+      using type = tmpl::sort_t<hidden::kind_cmp, List>;
     };
 
     using tmp = typename helper<-1, true, tmpl::X<T...>>::type;
@@ -208,8 +208,9 @@ namespace unitpp
   };
 
   template<typename L>
-  using compoundify_t = typename compoundify<detail::compoundify_op<L>>::type;
+  using compoundify_t = typename compoundify<hidden::compoundify_op<L>>::type;
 
   template<class L, bool condition>
   using compoundifier = std::conditional_t<condition, compoundify_t<L>, L>;
+}
 }

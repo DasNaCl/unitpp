@@ -17,7 +17,7 @@
 #pragma once 
 
 #include <tmpl/recursive_union.hpp>
-#include <detail/measure.hpp>
+#include <measure.hpp>
 
 namespace unitpp
 {

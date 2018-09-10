@@ -16,13 +16,17 @@
 
 #pragma once 
 
-#include <detail/measure.hpp>
+#include <measure.hpp>
+#include <tmpl/filter.hpp>
 #include <detail/add_exponents.hpp>
 #include <detail/uncompoundify.hpp>
-#include <compoundify.hpp>
+#include <detail/compoundify.hpp>
 
 namespace unitpp
 {
+  template<bool shall_compoundify, class... Args>
+  struct simplify;
+
   template<bool shall_uncompoundify, class... Args>
   struct simplify<shall_uncompoundify, tmpl::X<Args...>>
   {
@@ -30,13 +34,13 @@ namespace unitpp
     using tl = tmpl::tail<tmpl::X<Args...>>;
 
     template<class B>
-    using my_same_kind = detail::is_same_kind<hd, B>;
+    using my_same_kind = is_same_kind<hd, B>;
 
     template<detail::MeasureType t, class m, class l>
     struct intermediate_simplify
     {
-      using added = add_exponents_t<hd, tmpl::X<Args...>>;
-      using type = tmpl::cons<added, typename simplify<shall_uncompoundify, me::filter_t<my_same_kind, tl>>::type>;
+      using added = detail::add_exponents_t<hd, tmpl::X<Args...>>;
+      using type = tmpl::cons<added, typename simplify<shall_uncompoundify, tmpl::filter_t<my_same_kind, tl>>::type>;
     };
 
     template<class m, class l>
@@ -57,11 +61,11 @@ namespace unitpp
   };
 
   template<class L, bool shall_uncompoundify>
-  using simplify_helper_t = tmpl::filter_t<detail::is_exp_null,
+  using simplify_helper_t = tmpl::filter_t<is_exp_null,
                               typename simplify<shall_uncompoundify, tmpl::recursive_union<L>>::type>;
 
   template<class L, class Default, bool shall_compoundify = false, bool shall_uncompoundify = true>
   using simplify_t = std::conditional_t<std::is_same_v<simplify_helper_t<L, shall_uncompoundify>, tmpl::X<>>,
                                         Default,
-                                        compoundifier<simplify_helper_t<L, shall_uncompoundify>, shall_compoundify>>;
+                                        detail::compoundifier<simplify_helper_t<L, shall_uncompoundify>, shall_compoundify>>;
 }

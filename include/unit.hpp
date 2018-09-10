@@ -16,12 +16,22 @@
 
 #pragma once 
 
+#include <tmpl/forall.hpp>
+#include <tmpl/find.hpp>
+#include <tmpl/sort.hpp>
+#include <detail/basify_converted_units.hpp>
+#include <detail/inverse_measures.hpp>
+#include <detail/uncompoundify.hpp>
+#include <detail/compoundify.hpp>
+#include <detail/explode.hpp>
+#include <system_convert.hpp>
+#include <simplify.hpp>
 #include <measure.hpp>
 
 template<typename L, typename T = float>
 struct unit;
 
-namespace me
+namespace unitpp
 {
 
 template<class U>
@@ -54,7 +64,7 @@ template<class u>
 using result_helper_t = std::remove_reference_t<std::remove_cv_t<u>>;
 
 template<class u>
-using sort_unit_t = unit<me::sort_t<me::detail::base_cmp, detail::measure_list_t<u>>, detail::underlying_type_t<u>>;
+using sort_unit_t = unit<tmpl::sort_t<detail::hidden::base_cmp, detail::measure_list_t<u>>, detail::underlying_type_t<u>>;
 
 template<class, class>
 struct same_unit : public std::false_type {};
@@ -64,7 +74,7 @@ struct same_unit<unit<L1, T1>, unit<L2, T2>>
   using nL1 = detail::measure_list_t<sort_unit_t<unit<L1, T1>>>;
   using nL2 = detail::measure_list_t<sort_unit_t<unit<L2, T2>>>;
 
-  constexpr static bool value = me::is_same_measure<result_helper_t<nL1>, result_helper_t<nL2>>::value;
+  constexpr static bool value = is_exact_same_measure_v<result_helper_t<nL1>, result_helper_t<nL2>>;
 };
 template<class A, class B>
 inline constexpr bool same_unit_v = same_unit<A, B>::value;
@@ -74,7 +84,7 @@ template<class u1, class u2>
 struct mesh_together;
 template<class L1, class T1, class L2, class T2>
 struct mesh_together<unit<L1, T1>, unit<L2, T2>>
-{ using type = unit<me::conc<L1, L2>, T1>; };
+{ using type = unit<tmpl::conc<L1, L2>, T1>; };
 
 template<class u1, class u2>
 using mesh_together_t = typename mesh_together<result_helper_t<u1>, result_helper_t<u2>>::type;
@@ -85,7 +95,7 @@ struct inverse_unit;
 template<class L, class T>
 struct inverse_unit<unit<L, T>>
 {
-  using type = unit<inverse_measures_t<L>, T>;
+  using type = unit<detail::inverse_measures_t<L>, T>;
 };
 
 template<class u>
@@ -95,19 +105,21 @@ using inverse_unit_t = typename inverse_unit<u>::type;
 }
 
 template<class... Args, typename T>
-struct unit<me::X<Args...>, T>
+struct unit<unitpp::tmpl::X<Args...>, T>
 {
-  using Units = me::X<Args...>;
+  using Units = unitpp::tmpl::X<Args...>;
   using Default = T;
 
   constexpr unit() = default;
   constexpr unit(T v) : val(v)
   {  }
   template<class u2>
-  constexpr unit(std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u) : val(u.raw())
+  constexpr unit(std::enable_if_t<unitpp::is_unit_v<u2>
+                      && unitpp::same_unit_v<unit<unitpp::tmpl::X<Args...>, T>, u2>, u2> u) : val(u.raw())
   {  }
   template<class u2>
-  constexpr unit& operator=(std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, u2> u)
+  constexpr unit& operator=(std::enable_if_t<unitpp::is_unit_v<u2>
+                                 && unitpp::same_unit_v<unit<unitpp::tmpl::X<Args...>, T>, u2>, u2> u)
   {
     val = u.raw();
     return *this;
@@ -120,7 +132,8 @@ struct unit<me::X<Args...>, T>
   // addition and subtraction
   template<class u2>
   constexpr auto operator+=(u2 b)
-    -> std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<unitpp::is_unit_v<u2>
+            && unitpp::same_unit_v<unit<unitpp::tmpl::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val += b.raw();
     return *this;
@@ -128,7 +141,8 @@ struct unit<me::X<Args...>, T>
 
   template<class u2>
   constexpr auto operator-=(u2 b)
-    -> std::enable_if_t<me::is_unit_v<u2> && me::same_unit_v<unit<me::X<Args...>, T>, u2>, decltype(*this)&>
+    -> std::enable_if_t<unitpp::is_unit_v<u2>
+            && unitpp::same_unit_v<unit<unitpp::tmpl::X<Args...>, T>, u2>, decltype(*this)&>
   {
     val -= b.raw();
     return *this;
@@ -137,7 +151,7 @@ struct unit<me::X<Args...>, T>
   // scalar operations
   template<class D>
   constexpr auto operator*=(D b)
-  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<me::result_helper_t<D>, T>,
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<unitpp::result_helper_t<D>, T>,
                       decltype(*this)>
   {
     val *= b;
@@ -145,7 +159,7 @@ struct unit<me::X<Args...>, T>
   }
   template<class D>
   constexpr auto operator/=(D b)
-  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<me::result_helper_t<D>, T>,
+  -> std::enable_if_t<std::is_arithmetic_v<D> || std::is_same_v<unitpp::result_helper_t<D>, T>,
                       decltype(*this)>
   {
     val /= b;
@@ -164,17 +178,17 @@ template<class IS, class M, class D>
 IS& operator>>(IS& is, unit<M, D>& u)
 { return is >> u.val; }
 
-namespace me
+namespace unitpp
 {
 
 template<class T, bool shall_compoundify = false, bool shall_uncompoundify = true>
-using simplify_unit_t = std::conditional_t<std::is_same_v<simplify_t<typename T::Units,
+using simplify_unit_t = std::conditional_t<std::is_same_v<unitpp::simplify_t<typename T::Units,
                                                                      typename T::Default,
                                                                      shall_compoundify,
                                                                      shall_uncompoundify>,
                                                           typename T::Default>,
                                            typename T::Default,
-                                           unit<simplify_t<typename T::Units,
+                                           unit<unitpp::simplify_t<typename T::Units,
                                                            typename T::Default,
                                                            shall_compoundify,
                                                            shall_uncompoundify>, typename T::Default>
@@ -184,21 +198,23 @@ using simplify_unit_t = std::conditional_t<std::is_same_v<simplify_t<typename T:
 // conversion
 template<class L1, class T1, class L2, class T2>
 constexpr auto unit_cast(unit<L2, T2> from)
-  -> std::enable_if_t<me::same_unit_v<unit<L1, T1>, unit<L2, T2>>, unit<L1, T1>> // <- to
+  -> std::enable_if_t<unitpp::same_unit_v<unit<L1, T1>, unit<L2, T2>>, unit<L1, T1>> // <- to
 {
   return { from.raw() };
 }
 
-namespace me::detail
+namespace unitpp
+{
+namespace detail
 {
   template<class>
   struct convert_helper;
 
   template<class... Args>
-  struct convert_helper<me::X<Args...>>
+  struct convert_helper<unitpp::tmpl::X<Args...>>
   {
-    using hd = me::head<me::X<Args...>>;
-    using tl = me::tail<me::X<Args...>>;
+    using hd = unitpp::tmpl::head<unitpp::tmpl::X<Args...>>;
+    using tl = unitpp::tmpl::tail<unitpp::tmpl::X<Args...>>;
 
     // convert to base
     template<class T>
@@ -206,7 +222,7 @@ namespace me::detail
     {
       constexpr int e = hd::exponent < 0 ? (-1 * hd::exponent) : hd::exponent;
       T v = t;
-      if constexpr(me::is_converted_measure_v<hd>)
+      if constexpr(unitpp::is_converted_measure_v<hd>)
       {
         for(int i = 0; i < e; ++i)
         {
@@ -225,7 +241,7 @@ namespace me::detail
     {
       constexpr int e = hd::exponent < 0 ? (-1 * hd::exponent) : hd::exponent;
       T v = t;
-      if constexpr(me::is_converted_measure_v<hd>)
+      if constexpr(unitpp::is_converted_measure_v<hd>)
       {
         for(int i = 0; i < e; ++i)
         {
@@ -243,22 +259,22 @@ namespace me::detail
     struct system_convert_helper;
 
     template<class Garbage, class... A1, class... B1>
-    struct system_convert_helper<Garbage, me::X<A1...>, me::X<B1...>>
+    struct system_convert_helper<Garbage, tmpl::X<A1...>, tmpl::X<B1...>>
     {
       template<class F>
-      using no_conv_measure = std::bool_constant<!me::is_converted_measure_v<F>>;
-      static_assert(me::forall_v<no_conv_measure, me::X<A1...>>, "system_convert expects a converted-measure-free list");
-      static_assert(me::forall_v<no_conv_measure, me::X<B1...>>, "system_convert expects a converted-measure-free list");
+      using no_conv_measure = std::bool_constant<!is_converted_measure_v<F>>;
+      static_assert(tmpl::forall_v<no_conv_measure, tmpl::X<A1...>>, "system_convert expects a converted-measure-free list");
+      static_assert(tmpl::forall_v<no_conv_measure, tmpl::X<B1...>>, "system_convert expects a converted-measure-free list");
       
-      using cur = me::head<me::X<A1...>>;
+      using cur = tmpl::head<tmpl::X<A1...>>;
       
       template<class F>
-      using same_measure = std::bool_constant<me::is_same_type_v<cur, F> && me::is_same_kind_v<cur, F>>;
+      using same_measure = std::bool_constant<is_same_measure_type_v<cur, F> && is_same_kind_v<cur, F>>;
 
       template<class D>
       constexpr static D f(D d)
       {
-        using found = me::find<same_measure, me::X<B1...>>;
+        using found = tmpl::find<same_measure, tmpl::X<B1...>>;
         constexpr bool cond = found::value;
         if constexpr(cond)
         {
@@ -268,15 +284,15 @@ namespace me::detail
         else
         {
           // unit *must* be converted with a system_conversion
-          static_assert(me::exists_system_convert_v<cur, typename found::type>, "No system conversion existent");
+          static_assert(exists_system_convert_v<cur, typename found::type>, "No system conversion existent");
 
-          return me::system_convert<cur, typename found::type>()(d);
+          return system_convert<cur, typename found::type>()(d);
         }
       }
     };
 
     template<class Garbage>
-    struct system_convert_helper<Garbage, me::X<>, me::X<>>
+    struct system_convert_helper<Garbage, tmpl::X<>, tmpl::X<>>
     {
       template<class D>
       constexpr static D f(D d)
@@ -287,16 +303,16 @@ namespace me::detail
     constexpr static T system_conversions(T t)
     {
       using A = hd; // first list
-      using B = me::head<tl>; // second list
+      using B = tmpl::head<tl>; // second list
 
-      using Ab = me::basify_converted_units_t<A>;
-      using Bb = me::basify_converted_units_t<B>;
+      using Ab = basify_converted_units_t<A>;
+      using Bb = basify_converted_units_t<B>;
 
       return system_convert_helper<void, Ab, Bb>::f(t);
     }
   };
   template<>
-  struct convert_helper<me::X<>>
+  struct convert_helper<tmpl::X<>>
   {
     template<class T>
     constexpr static T to_base_measure(T t)
@@ -311,22 +327,23 @@ namespace me::detail
     { return t; }
   };
 }
+}
 
 template<class U1, class U2>
 constexpr auto unit_cast(U2 from)
-  -> std::enable_if_t<me::is_unit_v<U1> && me::is_unit_v<U2> && !me::same_unit_v<U1, U2>, U1> // <- to
+  -> std::enable_if_t<unitpp::is_unit_v<U1> && unitpp::is_unit_v<U2> && !unitpp::same_unit_v<U1, U2>, U1> // <- to
 {
-  using A = me::explode_t<me::uncompoundify<me::detail::measure_list_t<U1>>>;
-  using B = me::explode_t<me::uncompoundify<me::detail::measure_list_t<U2>>>;
+  using A = unitpp::detail::explode_t<unitpp::detail::uncompoundify<unitpp::detail::measure_list_t<U1>>>;
+  using B = unitpp::detail::explode_t<unitpp::detail::uncompoundify<unitpp::detail::measure_list_t<U2>>>;
 
-  auto tmp = me::detail::convert_helper<B>::to_base_measure(from.raw());
-  auto sys = me::detail::convert_helper<me::X<A, B>>::system_conversions(tmp);
-  auto res = me::detail::convert_helper<A>::from_base_measure(sys);
+  auto tmp = unitpp::detail::convert_helper<B>::to_base_measure(from.raw());
+  auto sys = unitpp::detail::convert_helper<unitpp::tmpl::X<A, B>>::system_conversions(tmp);
+  auto res = unitpp::detail::convert_helper<A>::from_base_measure(sys);
 
   return { res };
 }
 /////
-namespace me
+namespace unitpp
 {
 
 

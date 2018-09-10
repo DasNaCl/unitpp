@@ -20,7 +20,7 @@
 
 #include <string>
 
-namespace me
+namespace unitpp
 {
 
 template<class U, class StrT>
@@ -32,8 +32,10 @@ struct info
   info() : val()
   {  }
   template<class D, class = std::enable_if_t<is_unit_v<D>
-                                          && is_same_measure_v<me::simplify_t<me::detail::measure_list_t<U>, me::detail::underlying_type_t<U>, false, true>,
-                                                               me::simplify_t<me::detail::measure_list_t<D>, me::detail::underlying_type_t<D>, false, true>>>>
+                 && is_exact_same_measure_v<simplify_t<unitpp::detail::measure_list_t<U>,
+                                                       unitpp::detail::underlying_type_t<U>, false, true>,
+                     unitpp::simplify_t<unitpp::detail::measure_list_t<D>,
+                                        unitpp::detail::underlying_type_t<D>, false, true>>>>
   info(D u) : val(std::to_string(u.raw()))
   {  }
   template<class OS, class D, class StrD>
@@ -59,7 +61,7 @@ template<class, class>
 struct measure_info;
 
 // this class is meant for specialization
-template<MeasureType type, class kind, int exp, class StrT>
+template<detail::MeasureType type, class kind, int exp, class StrT>
 struct measure_info<measure<type, kind, exp>, StrT>
 {
   constexpr static StrT symbol()
@@ -70,64 +72,64 @@ struct measure_info<measure<type, kind, exp>, StrT>
 };
 
 template<class... L, class B, class StrT>
-struct unit_info<unit<me::X<L...>, B>, StrT>
+struct unit_info<unit<tmpl::X<L...>, B>, StrT>
 {
   constexpr static StrT symbol()
   {
-    constexpr int exp = me::head<me::X<L...>>::exponent;
-    if constexpr(me::length_v<me::X<L...>> > 1)
+    constexpr int exp = tmpl::head<tmpl::X<L...>>::exponent;
+    if constexpr(tmpl::length_v<tmpl::X<L...>> > 1)
     {
       if constexpr(exp != 1)
       {
-        return measure_info<me::head<me::X<L...>>, StrT>::symbol()
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::symbol()
                + "^" + std::to_string(exp) + " "
-               + unit_info<unit<me::tail<me::X<L...>>, B>, StrT>::symbol();
+               + unit_info<unit<tmpl::tail<tmpl::X<L...>>, B>, StrT>::symbol();
       }
       else
       {
-        return measure_info<me::head<me::X<L...>>, StrT>::symbol()
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::symbol()
                + " "
-               + unit_info<unit<me::tail<me::X<L...>>, B>, StrT>::symbol();
+               + unit_info<unit<tmpl::tail<tmpl::X<L...>>, B>, StrT>::symbol();
       }
     }
     else
     {
       if constexpr(exp != 1)
-        return measure_info<me::head<me::X<L...>>, StrT>::symbol()
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::symbol()
                + "^" + std::to_string(exp);
       else
-        return measure_info<me::head<me::X<L...>>, StrT>::symbol();
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::symbol();
     }
   }
   constexpr static StrT name()
   {
-    constexpr int exp = me::head<me::X<L...>>::exponent;
-    if constexpr(me::length_v<me::X<L...>> > 1)
+    constexpr int exp = tmpl::head<tmpl::X<L...>>::exponent;
+    if constexpr(tmpl::length_v<tmpl::X<L...>> > 1)
     {
       if constexpr(exp != 1)
       {
-        return measure_info<me::head<me::X<L...>>, StrT>::name()
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::name()
                + "^" + std::to_string(exp) + " "
-               + unit_info<unit<me::tail<me::X<L...>>, B>, StrT>::name();
+               + unit_info<unit<tmpl::tail<tmpl::X<L...>>, B>, StrT>::name();
       }
       else
       {
-        return measure_info<me::head<me::X<L...>>, StrT>::name()
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::name()
                + " "
-               + unit_info<unit<me::tail<me::X<L...>>, B>, StrT>::name();
+               + unit_info<unit<tmpl::tail<tmpl::X<L...>>, B>, StrT>::name();
       }
     }
     else
     {
       if constexpr(exp != 1)
-        return measure_info<me::head<me::X<L...>>, StrT>::name() + "^" + std::to_string(exp);
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::name() + "^" + std::to_string(exp);
       else
-        return measure_info<me::head<me::X<L...>>, StrT>::name();
+        return measure_info<tmpl::head<tmpl::X<L...>>, StrT>::name();
     }
   }
   constexpr static StrT text()
   {
-    if constexpr(me::length_v<me::X<L...>> > 1)
+    if constexpr(tmpl::length_v<tmpl::X<L...>> > 1)
       return "(" + symbol() + ")";
     else
       return symbol();

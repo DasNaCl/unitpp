@@ -16,7 +16,7 @@
 
 #pragma once 
 
-#include <detail/measure.hpp>
+#include <measure.hpp>
 
 namespace unitpp
 {
@@ -59,6 +59,6 @@ namespace detail
   };
 
   template<class T, class E>
-  using add_exponets_t = typename add_exponents<T, E>::type;
+  using add_exponents_t = typename add_exponents<T, E>::type;
 }
 }

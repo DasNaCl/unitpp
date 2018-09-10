@@ -14,13 +14,16 @@
    limitations under the License.
 */
 
-#pragma once 
+#pragma once
 
+#include <tmpl/list.hpp>
+#include <detail/scales.hpp>
+#include <detail/crc.hpp>
 #include <info.hpp>
 
 #define unitpp_define_quantity_helper(longname, basename)                                    \
-struct longname { static constexpr std::uint64_t id = me::detail::CRC64(#longname);          \
-                  static constexpr std::uint64_t base_id = me::detail::CRC64(#basename); };
+struct longname { static constexpr std::uint64_t id = unitpp::detail::CRC64(#longname);          \
+                  static constexpr std::uint64_t base_id = unitpp::detail::CRC64(#basename); };
 
 #define unitpp_define_quantity(kind)              \
 unitpp_define_quantity_helper(yotta##kind, kind) \
@@ -47,9 +50,9 @@ unitpp_define_quantity_helper(yocto##kind, kind)
 
 
 #define unitpp_define_quantitiy_unit_literals_helper(longname, name, literal, BtoS, StoB, T) \
-constexpr unit<me::X<me::measure<me::MeasureType::Converted, \
-               me::scale_info<longname, me::scales::BtoS<T>, \
-               me::scales::StoB<T>, me::measure<me::MeasureType::Base, name, 1>>, 1>>> literal(1.f);
+constexpr unit<unitpp::tmpl::X<unitpp::measure<unitpp::detail::MeasureType::Converted, \
+               unitpp::detail::scale_info<longname, unitpp::scales::BtoS<T>, \
+               unitpp::scales::StoB<T>, unitpp::measure<unitpp::detail::MeasureType::Base, name, 1>>, 1>>> literal(1.f);
 
 #define unitpp_define_quantity_unit_literals(name, literal, T) \
 unitpp_define_quantitiy_unit_literals_helper(yotta##name, name,  Y##literal, yotta, yocto, T) \
@@ -62,7 +65,7 @@ unitpp_define_quantitiy_unit_literals_helper(mega##name,  name,  M##literal, meg
 unitpp_define_quantitiy_unit_literals_helper(kilo##name,  name,  k##literal, kilo,  milli, T) \
 unitpp_define_quantitiy_unit_literals_helper(hecto##name, name,  h##literal, hecto, centi, T) \
 unitpp_define_quantitiy_unit_literals_helper(deca##name,  name, da##literal, deca,  deci,  T) \
-constexpr unit<me::X<me::measure<me::MeasureType::Base, name, 1>>> literal(1.f);              \
+constexpr unit<unitpp::tmpl::X<unitpp::measure<unitpp::detail::MeasureType::Base, name, 1>>> literal(1.f);              \
 unitpp_define_quantitiy_unit_literals_helper(deci##name,  name,  d##literal, deci,  deca,  T) \
 unitpp_define_quantitiy_unit_literals_helper(centi##name, name,  c##literal, centi, hecto, T) \
 unitpp_define_quantitiy_unit_literals_helper(milli##name, name,  m##literal, milli, kilo,  T) \
@@ -75,51 +78,51 @@ unitpp_define_quantitiy_unit_literals_helper(zepto##name, name,  z##literal, zep
 unitpp_define_quantitiy_unit_literals_helper(yocto##name, name,  y##literal, yocto, yotta, T)
 
 #define unitpp_define_base_unit_literal(literal, name) \
-unit<me::X<me::measure<me::MeasureType::Base, name, 1>>> literal(1.f);
+unit<unitpp::tmpl::X<unitpp::measure<unitpp::detail::MeasureType::Base, name, 1>>> literal(1.f);
 
 #define unitpp_define_compound_unit_literal(literal, ...) \
-unit<me::X<__VA_ARGS__>> literal(1.f);
+unit<unitpp::tmpl::X<__VA_ARGS__>> literal(1.f);
 
 #define unitpp_define_alias_base(capitalized_name, name)              \
 template<int n = 1>                                                   \
-using capitalized_name = me::measure<me::MeasureType::Base, name, n>;
+using capitalized_name = unitpp::measure<unitpp::detail::MeasureType::Base, name, n>;
 
 #define unitpp_define_alias_converted(capitalized_name, name, BtoS, StoB, Base_) \
 template<int n = 1> \
-using capitalized_name = me::measure<me::MeasureType::Converted, \
-                                     me::scale_info<name, StoB, BtoS, me::measure<me::MeasureType::Base, Base_, 1>>, n>;
+using capitalized_name = unitpp::measure<unitpp::detail::MeasureType::Converted, \
+                                     unitpp::detail::scale_info<name, StoB, BtoS, unitpp::measure<unitpp::detail::MeasureType::Base, Base_, 1>>, n>;
 
 #define unitpp_define_alias_compound(capitalized_name, ...)                             \
 template<int n = 1>                                                                     \
-using capitalized_name = me::measure<me::MeasureType::Compound, me::X<__VA_ARGS__>, n>;
+using capitalized_name = unitpp::measure<unitpp::detail::MeasureType::Compound, unitpp::tmpl::X<__VA_ARGS__>, n>;
 
 #define unitpp_define_compound_conversion(capitalized_name, ...) \
-namespace me { template<>                                 \
-struct exists_compound<me::sort_t<me::detail::kind_cmp, me::X<__VA_ARGS__>>> : std::true_type \
-{ using type = me::X<capitalized_name<1>>; }; }
+namespace unitpp { template<>                                 \
+struct exists_compound<unitpp::tmpl::sort_t<unitpp::detail::hidden::kind_cmp, unitpp::tmpl::X<__VA_ARGS__>>> : std::true_type \
+{ using type = unitpp::tmpl::X<capitalized_name<1>>; }; }
 
 #define unitpp_define_quantity_alias(capitalized_name, name) \
-unitpp_define_alias_converted(Yotta##name, yotta##name, me::scales::yocto<float>, me::scales::yotta<float>, name) \
-unitpp_define_alias_converted(Zetta##name, zetta##name, me::scales::zepto<float>, me::scales::zetta<float>, name) \
-unitpp_define_alias_converted(  Exa##name,   exa##name, me::scales::atto<float>,  me::scales::exa<float>,   name) \
-unitpp_define_alias_converted( Peta##name,  peta##name, me::scales::femto<float>, me::scales::peta<float>,  name) \
-unitpp_define_alias_converted( Tera##name,  tera##name, me::scales::pico<float>,  me::scales::tera<float>,  name) \
-unitpp_define_alias_converted( Giga##name,  giga##name, me::scales::nano<float>,  me::scales::giga<float>,  name) \
-unitpp_define_alias_converted( Mega##name,  mega##name, me::scales::micro<float>, me::scales::mega<float>,  name) \
-unitpp_define_alias_converted( Kilo##name,  kilo##name, me::scales::milli<float>, me::scales::kilo<float>,  name) \
-unitpp_define_alias_converted(Hecto##name, hecto##name, me::scales::centi<float>, me::scales::hecto<float>, name) \
-unitpp_define_alias_converted( Deca##name,  deca##name, me::scales::deci<float>,  me::scales::deca<float>,  name) \
+unitpp_define_alias_converted(Yotta##name, yotta##name, unitpp::scales::yocto<float>, unitpp::scales::yotta<float>, name) \
+unitpp_define_alias_converted(Zetta##name, zetta##name, unitpp::scales::zepto<float>, unitpp::scales::zetta<float>, name) \
+unitpp_define_alias_converted(  Exa##name,   exa##name, unitpp::scales::atto<float>,  unitpp::scales::exa<float>,   name) \
+unitpp_define_alias_converted( Peta##name,  peta##name, unitpp::scales::femto<float>, unitpp::scales::peta<float>,  name) \
+unitpp_define_alias_converted( Tera##name,  tera##name, unitpp::scales::pico<float>,  unitpp::scales::tera<float>,  name) \
+unitpp_define_alias_converted( Giga##name,  giga##name, unitpp::scales::nano<float>,  unitpp::scales::giga<float>,  name) \
+unitpp_define_alias_converted( Mega##name,  mega##name, unitpp::scales::micro<float>, unitpp::scales::mega<float>,  name) \
+unitpp_define_alias_converted( Kilo##name,  kilo##name, unitpp::scales::milli<float>, unitpp::scales::kilo<float>,  name) \
+unitpp_define_alias_converted(Hecto##name, hecto##name, unitpp::scales::centi<float>, unitpp::scales::hecto<float>, name) \
+unitpp_define_alias_converted( Deca##name,  deca##name, unitpp::scales::deci<float>,  unitpp::scales::deca<float>,  name) \
 unitpp_define_alias_base(capitalized_name,   name) \
-unitpp_define_alias_converted( Deci##name,  deci##name, me::scales::deca<float>,  me::scales::deci<float>,  name) \
-unitpp_define_alias_converted(Centi##name, centi##name, me::scales::hecto<float>, me::scales::centi<float>, name) \
-unitpp_define_alias_converted(Milli##name, milli##name, me::scales::kilo<float>,  me::scales::milli<float>, name) \
-unitpp_define_alias_converted(Micro##name, micro##name, me::scales::mega<float>,  me::scales::micro<float>, name) \
-unitpp_define_alias_converted( Nano##name,  nano##name, me::scales::giga<float>,  me::scales::nano<float>,  name) \
-unitpp_define_alias_converted( Pico##name,  pico##name, me::scales::tera<float>,  me::scales::pico<float>,  name) \
-unitpp_define_alias_converted(Femto##name, femto##name, me::scales::peta<float>,  me::scales::femto<float>, name) \
-unitpp_define_alias_converted( Atto##name,  atto##name, me::scales::exa<float>,   me::scales::atto<float>,  name) \
-unitpp_define_alias_converted(Zepto##name, zepto##name, me::scales::zetta<float>, me::scales::zepto<float>, name) \
-unitpp_define_alias_converted(Yocto##name, yocto##name, me::scales::yotta<float>, me::scales::yocto<float>, name)
+unitpp_define_alias_converted( Deci##name,  deci##name, unitpp::scales::deca<float>,  unitpp::scales::deci<float>,  name) \
+unitpp_define_alias_converted(Centi##name, centi##name, unitpp::scales::hecto<float>, unitpp::scales::centi<float>, name) \
+unitpp_define_alias_converted(Milli##name, milli##name, unitpp::scales::kilo<float>,  unitpp::scales::milli<float>, name) \
+unitpp_define_alias_converted(Micro##name, micro##name, unitpp::scales::mega<float>,  unitpp::scales::micro<float>, name) \
+unitpp_define_alias_converted( Nano##name,  nano##name, unitpp::scales::giga<float>,  unitpp::scales::nano<float>,  name) \
+unitpp_define_alias_converted( Pico##name,  pico##name, unitpp::scales::tera<float>,  unitpp::scales::pico<float>,  name) \
+unitpp_define_alias_converted(Femto##name, femto##name, unitpp::scales::peta<float>,  unitpp::scales::femto<float>, name) \
+unitpp_define_alias_converted( Atto##name,  atto##name, unitpp::scales::exa<float>,   unitpp::scales::atto<float>,  name) \
+unitpp_define_alias_converted(Zepto##name, zepto##name, unitpp::scales::zetta<float>, unitpp::scales::zepto<float>, name) \
+unitpp_define_alias_converted(Yocto##name, yocto##name, unitpp::scales::yotta<float>, unitpp::scales::yocto<float>, name)
 
 
 #define unitpp_define_base_quantity(capitalized_name, name, literal) \
@@ -245,7 +248,7 @@ unitpp_define_compound_conversion(si::Katal, si::Mole<1>, si::Second<-1>)
 
 
 
-namespace me
+namespace unitpp
 {
 template<int exp, class StrT>
 struct measure_info<si::Meter<exp>, StrT>
