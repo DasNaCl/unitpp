@@ -1,4 +1,4 @@
-> This readme is still **incomplete**!
+> This repository is still **incomplete**!
 
 # Introduction
 
